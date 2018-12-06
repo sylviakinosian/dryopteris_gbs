@@ -1,0 +1,14 @@
+---
+title: "*Pteridium* GBS Pipeline"
+author: "Sylvia Kinosian"
+output: html_document
+---
+
+#{.tabset}
+
+##Psuedo-reference creation
+
+##Alignment of Reads
+
+##Population genetics
+

@@ -6,8 +6,78 @@ output: html_document
 
 #{.tabset}
 
-##Psuedo-reference creation
+##GBS Pipeline
 
+###**1) Parse barcodes, split .FASTQ by individual, combine paired end reads**
+
+PEAR
+
+###**2) Building our reference**
+
+### PLEASE NOTE: this is for the diploid species ONLY (*D. goldiana*, *D. intermedia*, *D.* and *D.*). 
+
+Now that we have extracted the raw information for each individual, it's time to build our reference genome. There is no reference genome available for *Dryopteris*, so we are going to build one *de novo* using the two diploid species. Since the tetraploids are most likely allotetraploids (of hybrid origin) we are only using the diploids because that will capture most of the sequence variation and is cleaner than dealing with the possibly divergent sequences on the tetraploid hybrids.
+
+We decided to build the reference genome by clustering similar sequences within species, and then combining those sequences across individuals. For the final reference, we made sure that each contig was represented in BOTH diploid species.
+
+**Before starting**, transfer the .FASTQ files for the diploid individuals to separate folders. This will make the clustering within each species much easier.
+
+###Step 1: Cluster highly similar sequences in individual .FASTQ files
+
+####a.
+The first part of this step is to convert the .FASTQ files into .FASTA files using the program SEQTK (v. 1.2-r102-dirty). See the script seqtk.sh (below) for an example of how to loop through the files in a directory.
+
+```{bash eval=FALSE}
+for i in *.fastq; do
+    id=$(echo $i | cut -f1 -d.)
+    echo $id
+	seqtk seq -a $i > $id.fasta
+	done
+```
+
+####b.
+The second part is to use the program VSEARCH (v. 2.4.2) to cluster sequences **within each individual** with a 98% similarity to create "centroids". 
+
+usage of vsearch.sh:
+
+```{bash eval=FALSE}
+vsearch.sh 0.98 centroids
+```
+
+VSEARCH command "under the hood" of vsearch.sh:
+```{bash eval=FALSE}
+vsearch --cluster_fast indivdual.fasta --id 0.98 --iddef 2 --threads 8 --centroids centroids/centroids98_individual.fasta
+```
+
+###Step 2: combine centroids from preceeding runs and cluster at 92% similarity
+
+####a. *D. goldiana*
+```{bash eval=FALSE}
+cat *.fasta > aqui_consensus.fasta
+
+vsearch --cluster_fast aqui_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92aquiCons.fasta --msaout 92aquiMsa.fasta
+```
+
+####b. *D. intermedia*
+```{bash eval=FALSE}
+cat *.fasta escu_consensus.fasta
+
+vsearch --cluster_fast consensus_escu.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+```
+
+####b. *D. intermedia*
+```{bash eval=FALSE}
+cat *.fasta escu_consensus.fasta
+
+vsearch --cluster_fast consensus_escu.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+```
+
+####b. *D. intermedia*
+```{bash eval=FALSE}
+cat *.fasta escu_consensus.fasta
+
+vsearch --cluster_fast consensus_escu.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+```
 ##Alignment of Reads
 
 ##Population genetics

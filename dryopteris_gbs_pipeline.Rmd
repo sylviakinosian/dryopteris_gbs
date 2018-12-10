@@ -1,5 +1,5 @@
 ---
-title: "*Pteridium* GBS Pipeline"
+title: "*Dryopteris* GBS Pipeline"
 author: "Sylvia Kinosian"
 output: html_document
 ---
@@ -8,13 +8,15 @@ output: html_document
 
 ##GBS Pipeline
 
+This portion of the analysis was done on the [HiperGator](https://www.rc.ufl.edu/services/hipergator/) at the University of Florida, Gainsville.
+
 ###**1) Parse barcodes, split .FASTQ by individual, combine paired end reads**
 
 PEAR
 
 ###**2) Building our reference**
 
-### PLEASE NOTE: this is for the diploid species ONLY (*D. goldiana*, *D. intermedia*, *D.* and *D.*). 
+### PLEASE NOTE: this is for the diploid species ONLY (*D. goldiana*, *D. intermedia*, *D. expansa* and *D. ludoviciana*). 
 
 Now that we have extracted the raw information for each individual, it's time to build our reference genome. There is no reference genome available for *Dryopteris*, so we are going to build one *de novo* using the two diploid species. Since the tetraploids are most likely allotetraploids (of hybrid origin) we are only using the diploids because that will capture most of the sequence variation and is cleaner than dealing with the possibly divergent sequences on the tetraploid hybrids.
 
@@ -53,32 +55,312 @@ vsearch --cluster_fast indivdual.fasta --id 0.98 --iddef 2 --threads 8 --centroi
 
 ####a. *D. goldiana*
 ```{bash eval=FALSE}
-cat *.fasta > aqui_consensus.fasta
+cat centroids*fasta > goldiana_consensus.fasta
 
-vsearch --cluster_fast aqui_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92aquiCons.fasta --msaout 92aquiMsa.fasta
+vsearch --cluster_fast goldiana_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92aquiCons.fasta --msaout 92aquiMsa.fasta
 ```
 
 ####b. *D. intermedia*
 ```{bash eval=FALSE}
+cat *.fasta intermedia_consensus.fasta
+
+vsearch --cluster_fast intermedia_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+```
+
+####c. *D. expansa*
+```{bash eval=FALSE}
 cat *.fasta escu_consensus.fasta
 
-vsearch --cluster_fast consensus_escu.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+vsearch --cluster_fast expansa_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+```
+
+####b. *D. ludoviciana*
+```{bash eval=FALSE}
+cat *.fasta escu_consensus.fasta
+
+vsearch --cluster_fast ludoviciana_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+```
+
+###Step 3: using the output from clustering at 92%, cluster again at 84% similarity
+
+####a. *D. goldiana*
+```{bash eval=FALSE}
+vsearch --cluster_fast 92goldCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84goldCons.fasta --msaout 84goldMsa.fasta
 ```
 
 ####b. *D. intermedia*
 ```{bash eval=FALSE}
-cat *.fasta escu_consensus.fasta
+vsearch --cluster_fast 92intermediaCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84intermediaCons.fasta --msaout 92intermediaMsa.fasta
+```
 
-vsearch --cluster_fast consensus_escu.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+####c. *D. expansa*
+```{bash eval=FALSE}
+vsearch --cluster_fast 92expansaCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84expansaCons.fasta --msaout 84expansaMsa.fasta
+```
+
+####b. *D. ludoviciana*
+```{bash eval=FALSE}
+vsearch --cluster_fast 92ludoCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84ludoCons.fasta --msaout 84ludoMsa.fasta
+```
+
+####c. Remove collapsed clusters (paralogs) from files clustered at 84% similarity
+
+The remove\_collapsed\_clusters.py script removes all entries that have (the 2nd) seqs > 1.
+
+####a. *D. goldiana*
+```{bash eval=FALSE}
+./remove_collapsed_clusters.py 84goldCons.fasta RCCgold.fasta
+sta
+
+440468 uncollapsed clusters found
 ```
 
 ####b. *D. intermedia*
 ```{bash eval=FALSE}
-cat *.fasta escu_consensus.fasta
+./remove_collapsed_clusters.py 84intermediaCons.fasta RCCintermedia.fasta
 
-vsearch --cluster_fast consensus_escu.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+837895 uncollapsed clusters found
 ```
+
+####c. *D. expansa*
+```{bash eval=FALSE}
+./remove_collapsed_clusters.py 84expansaCons.fasta RCCexpansa.fasta
+
+64631 uncollapsed clusters found
+```
+
+####b. *D. ludoviciana*
+```{bash eval=FALSE}
+./remove_collapsed_clusters.py 84ludoCons.fasta RCCludo.fasta
+
+132480 uncollapsed clusters found
+```
+
+The resulting RCC\*.fasta files will be used in step 4
+
+###Step 4: combine the diploid species, re-run VSEARCH clustering and filter
+
+####a. BEFORE COMBINING
+Make sure your *D. goldiana*, *D. intermedia*, *D. expansa*, and *D. ludoviciana* individuals are marked separatley within the RCC\*.fasta files. This will make checking to see if each final contig is represented by each species much easier.
+
+```{bash eval=FALSE}
+sed 's/^>centroid=centroid=/>centroid=centroid=g/g' RCCgold.fasta > gRCCgoldiana.fasta
+
+sed 's/^>centroid=centroid=/>centroid=centroid=i/g' RCCintermedia.fasta > iRCCintermedia.fasta
+
+sed 's/^>centroid=centroid=/>centroid=centroid=i/g' RCCexpansa.fasta > eRCCexpansa.fasta
+
+sed 's/^>centroid=centroid=/>centroid=centroid=i/g' RCCludo.fasta > lRCCludo.fasta
+```
+####b. Combine the diploids
+
+```{bash eval=FALSE}
+cat gRCCgoldiana.fasta iRCCintermedia.fasta eRCCexpansa.fasta lRCCludo.fasta > diploid_consensus.fasta
+```
+####c. Re-run vsearch with an id (% similarity) of your choice (92,88,86,84...)
+
+This clustering step in done to ensure that the individual contigs isolated are present in all four of the diploid species.
+
+```{bash eval=FALSE}
+# cluster at 88% similarity
+vsearch --cluster_fast ae_cons.fasta --threads 10 --iddef 2 --id 0.88 --consout 88ae_consout.fasta --msaout 88ae_msaout.fasta
+
+# remove all clusters that are present in only one species
+./presence_filter.pl 88ae_msaout.fasta
+
+finished, retained 85422 contigs
+```
+
+```{bash eval=FALSE}
+# cluster at 84% similarity
+vsearch --cluster_fast ae_cons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84ae_consout.fasta --msaout 84ae_msaout.fasta
+
+# remove all clusters that are present in only one species
+./presence_filter.pl 84ae_msaout.fasta
+
+finished, retained 105428 contigs
+```
+
+We chose to use the 84% similarity. The proided us with a large number of contigs present in both species. We are going to apply some much stricter filtering parameters later on in the variant calling step, so it is better to start off with a few more contigs / material in general.
+
+Hooray! Now you have a fresh *de novo* reference with which to align your parsed .FASTQ files!
+
 ##Alignment of Reads
+
+This portion of the analysis was done on the [Center for High Performance Computing](https://www.chpc.utah.edu/) at the University of Utah.
+
+###Step 1: Prepare the reference sequence
+
+####a. Index the reference (consensus) sequence. 
+
+Here, we used the Burrow-Wheeler Aligner (BWA v. 0.7.10) to index our reference genome. This give the squence position points for the alignment later on.
+
+```{bash eval=FALSE}
+bwa index diploid_consensus_final.fasta 
+```
+
+####b. Picard tools to create a dictionary
+
+We used Java (OpenJDK) v. 1.8.0 and PicardTools v. 2.9.0
+
+```{bash eval=FALSE}
+java -jar picard.jar CreateSequenceDictionary REFERENCE=diploid_consensus_final.fasta OUTPUT=diploid_consensus_final.dict
+```
+####c. Creating the fasta index file
+
+We used SAMTOOLS v. 1.5
+
+```{bash eval=FALSE}
+samtools faidx diploid_consensus_final.fasta
+```
+
+###Step 2: Align parsed reads (from ALL individual .FASTQ files) to the *de novo* reference
+
+####a. Align individuals with BWA ALN
+
+See script `bwa_aln.sh`
+
+```{bash eval=FALSE}
+#! /bin/bash
+
+REF='/uufs/chpc.utah.edu/common/home/wolf-group2/skinosian/3pteridium/parse/fastq/ae_consensus_final.fasta'
+
+for i in *.fastq;
+do
+ids=$(echo $i | cut -f1 -d.)
+echo $ids
+
+/uufs/chpc.utah.edu/common/home/u6009816/apps/bwa-0.7.15/bwa aln -n 4 -l 20 -k 2 -t 8 -q 10 -f $ids.sai $REF $i
+
+/uufs/chpc.utah.edu/common/home/u6009816/apps/bwa-0.7.15/bwa samse -n 1 -r "@RG\tID:$ids\tLB:$ids\tSM:$ids\tPL:ILLUMINA" -f $ids.sam $REF $ids.sai $i
+
+done
+```
+
+The output is a .SAM file for each individual
+
+####b. Convert files from .SAM to .BAM, sort, and index the individuals using SAMTOOLS
+
+```{bash eval=FALSE}
+samtools view -o *.bam *.sam
+
+samtools sort -o *.sorted.bam *.bam
+ 
+samtools index -b *.sorted.bam
+```
+
+Because there were about 100 individuals, we used a fork manager to run this through the University of Utah Center for High Performance Computing cluster (CHPC). The result is a .bam, .sorted.bam, and .sorted.bam.bai file for each individual. See the script fork\_view\_sort\_index.pl for an example.
+
+###Step 3: Call Variants
+
+To call variants, we used the GATK HaplotypeCaller (v. 3.8.0) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
+
+####Diploids
+```{bash eval=FALSE}
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
+```
+
+####Tetraploids
+```{bash eval=FALSE}
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I tetraploid_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ae_rawVar.g.vcf -out_mode EMIT_VARIANTS_ONLY --variant_index_type LINEAR --variant_index_parameter 128000
+```
+
+```{bash eval=FALSE}
+grep -v ^# ae.vcf | cut -f 8 | perl -p -i -e 's/DP=(\d+);\S+/\1/' > depth.txt
+```
+
+###Step 4: filter VCFs
+
+VCFTOOLS (v. 0.1.15) can be used to filter diploids (see below), but because it does not support tetraploids we created a custom Python script to filter instead.
+
+```{bash eval=FALSE}
+vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 2.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf 2ae\_rawVar.vcf
+```
+
+The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see **stringency variable** in script below). 
+
+BOTH VCF files need to be filtered this way (2ae\_rawVar.vcf and 4ae\_rawVar.vcf).
+
+```{python eval=FALSE}
+#! /usr/bin/python
+# 
+# This script filters a vcf file based on overall sequence coverage, number of
+# non-reference reads, number of alleles, and reverse orientation reads.  
+# See below for default values, and to change them, if necessary. Additionally,
+# note that currently, the number of retained loci is being written at the end
+# of the file. 
+# Usage: ./vcfFilter.py <variant file>.vcf > outfile.vcf
+
+import sys
+import re
+import shutil
+#import tempfile
+
+# stringency variables, edit as desired
+minCoverage = 20 # minimum number of seqs; DP
+minAltRds = 4 # minimum number of sequences with the alternative allele; AC
+notFixed = 1.0 # removes loci fixed for alt; AF
+mapQual = 30 # minimum mapping quality
+
+
+n_seqs_retained = int()
+with open(sys.argv[1], 'rb') as file:
+    for line in file:
+        if line[0] == '#':
+            print line.split('\n')[0]
+        else:
+            dp = int(re.findall('DP=[0-9]+', line)[0].split('=')[1])
+            ac = int(re.findall('AC=[0-9]+', line)[0].split('=')[1])
+            af = float(re.findall('AF=[0.0-9.0]+', line)[0].split('=')[1]) 
+	    if re.findall('MQ=NaN', line):
+                continue # some of the MQ are NaN, let's just skip those (they would be filtered out anyways)
+            else: 
+                mq = float(re.findall('MQ=[0.0-9.0]+', line)[0].split('=')[1])
+                if (dp >= minCoverage and ac >= minAltRds and af != notFixed and mq >= mapQual):
+                    print line.split('\n')[0]
+                    n_seqs_retained += 1
+                else:
+                    continue
+    file.close()
+
+print '#Retained %i variable loci' % n_seqs_retained
+```
+
+###Step 5: Find the intersection of variants in diploids and tetraploids
+
+Since we now have two VCF files, we need to combine them again somehow. To do this, we find the **intersection** of the variants in both files, subset, and then re-combine.
+
+####a. Intersection of variants
+
+```{bash eval=FALSE}
+perl vcf_checker.pl filtered_2.vcf filtered_4.vcf
+```
+
+Output is a list of the contigs present in both VCF files called matches.txt
+
+####b. Subset VCF files with list of intersection matches
+
+Do this for both files.
+
+```{bash eval=FALSE}
+perl subsetVcf.pl matches.vcf filtered_2.vcf
+
+perl subsetVcf.pl matches.vcf filtered_4.vcf
+```
+
+Output is two files: sub\_filtered\_2.vcf and sub\_filtered\_4.vcf
+
+####c. Combine files
+
+What we are doing here is appending the data from one file onto the end of each matching contig in the other file.
+
+```{bash eval=FALSE}
+perl combine.pl sub\_filtered\_2.vcf sub\_filtered\_4.vcf
+```
+
+This outputs a file called diploidsAll.vcf
+
+**Add CHROM lines from each to diploidsAll.vcf**
 
 ##Population genetics
 

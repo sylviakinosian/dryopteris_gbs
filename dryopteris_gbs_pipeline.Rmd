@@ -1,20 +1,22 @@
 ---
-title: "*Dryopteris* GBS Pipeline"
+title: "*Dryopteris* RADSeq Pipeline"
 author: "Sylvia Kinosian"
 output: html_document
 ---
 
-some text
+Processing the raw Illumina data was conducted in roughly three steps: 1) creation of a pseudo-reference genome, 2) alignment of reads and variant calling, and 3) admixture analysis.
 
-###GBS Pipeline
+# {.tabset}
+
+## RADSeq Pipeline
   
 This portion of the analysis was done on the [HiperGator](https://www.rc.ufl.edu/services/hipergator/) at the University of Florida, Gainsville.
 
-##**1) Parse barcodes, split .FASTQ by individual, combine paired end reads**
+### 1) Parse barcodes, split .FASTQ by individual, combine paired end reads
 
 This first step uses perl scripts to parse the barcodes from the raw GBS .FASTQ data and then split that raw file into indiviual .FASTQ files. Note that all Perl were run using Perl 5 (http://www.perl.org).
 
-####a. 
+#### a. Parse barcodes 
 The first scipt, parse\_barcodes768.pl, requires two files: a barcodes file and the raw GBS.FASTQ file. The barcodes.txt file has three columns: the index name, barcode, and sample name for each indiviual. See barcodes.txt for an example. 
 
 Usage:
@@ -22,7 +24,7 @@ Usage:
 perl parse_barcodes768.pl barcodes.txt raw_reads.fastq
 ```
 
-####b. 
+#### b. Split FASTQ by individual
 The next script, splitFastq\_ms.pl, requires two files: a list of individuals and the parsed.GBS.FASTQ file (one of the output file from parse\_barcodes768.pl). The individuals.txt file is simply a list of the names for each individual you would like to create a .FASTQ file for (a text file contain one column, with one name per row, no header).
 
 Usage:
@@ -31,16 +33,16 @@ perl splitFastq_ms.pl individuals.txt parsed_raw_reads.fastq
 ```
 Now, you should have a .FASTQ file for each individual listed in the indivduals.txt file. 
 
-####c.
+#### c. Combine paired-ends reads
 Combine paired-end reads for each individual using PEAR: Paired-End reAd mergeR (v. 0.9.8)
 
 ```{bash eval=FALSE}
 ./pear -f forward_read.fastq -r reverse_read.fastq -o outfile_name
 ```
 
-##**2) Building our reference**
+### 2) Building our reference
 
-##PLEASE NOTE: this is for the diploid species ONLY (*D. goldiana*, *D. intermedia*, *D. expansa* and *D. ludoviciana*). 
+### PLEASE NOTE: this is for the diploid species ONLY (*D. goldiana*, *D. intermedia*, *D. expansa* and *D. ludoviciana*). 
 
 Now that we have extracted the raw information for each individual, it's time to build our reference genome. There is no reference genome available for *Dryopteris*, so we are going to build one *de novo* using the two diploid species. Since the tetraploids are most likely allotetraploids (of hybrid origin) we are only using the diploids because that will capture most of the sequence variation and is cleaner than dealing with the possibly divergent sequences on the tetraploid hybrids.
 
@@ -48,9 +50,9 @@ We decided to build the reference genome by clustering similar sequences within 
 
 **Before starting**, transfer the .FASTQ files for the diploid individuals to separate folders. This will make the clustering within each species much easier.
 
-##Step 1: Cluster highly similar sequences in individual .FASTQ files
+### Step 1: Cluster highly similar sequences in individual .FASTQ files
 
-####a.
+#### a.
 The first part of this step is to convert the .FASTQ files into .FASTA files using the program SEQTK (v. 1.2-r102-dirty). See the script seqtk.sh (below) for an example of how to loop through the files in a directory.
 
 ```{bash eval=FALSE}
@@ -61,7 +63,7 @@ for i in *.fastq; do
 	done
 ```
 
-####b.
+#### b.
 The second part is to use the program VSEARCH (v. 2.4.2) to cluster sequences **within each individual** with a 98% similarity to create "centroids". 
 
 usage of vsearch.sh:
@@ -75,135 +77,115 @@ VSEARCH command "under the hood" of vsearch.sh:
 vsearch --cluster_fast indivdual.fasta --id 0.98 --iddef 2 --threads 8 --centroids centroids/centroids98_individual.fasta
 ```
 
-##Step 2: combine centroids from preceeding runs and cluster at 92% similarity
+### Step 2: combine centroids from preceeding runs and cluster at 92% similarity
 
-####a. *D. goldiana*
+#### a. *D. goldiana*
 ```{bash eval=FALSE}
 cat centroids*fasta > goldiana_consensus.fasta
 
-vsearch --cluster_fast goldiana_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92aquiCons.fasta --msaout 92aquiMsa.fasta
+vsearch --cluster_fast goldiana_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92goldianaCons.fasta --msaout 92goldianaMsa.fasta
 ```
 
-####b. *D. intermedia*
+#### b. *D. intermedia*
 ```{bash eval=FALSE}
-cat *.fasta intermedia_consensus.fasta
+cat centroids*.fasta intermedia_consensus.fasta
 
-vsearch --cluster_fast intermedia_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+vsearch --cluster_fast intermedia_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92intermediaCons.fasta --msaout 92intermediaMsa.fasta
 ```
 
-####c. *D. expansa*
+#### c. *D. expansa*
 ```{bash eval=FALSE}
-cat *.fasta escu_consensus.fasta
+cat centroids*.fasta expansa_consensus.fasta
 
-vsearch --cluster_fast expansa_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+vsearch --cluster_fast expansa_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92expansaCons.fasta --msaout 92expansaMsa.fasta
+```
+
+#### b. *D. ludoviciana*
+```{bash eval=FALSE}
+cat centroids*.fasta ludoviciana_consensus.fasta
+
+vsearch --cluster_fast ludoviciana_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92ludovicianaCons.fasta --msaout 92ludovicianaMsa.fasta
+```
+
+### Step 3: using the output from clustering at 92%, cluster again at 84% similarity
+
+#### a. *D. goldiana*
+```{bash eval=FALSE}
+vsearch --cluster_fast 92goldianaCons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84goldianaCons.fasta --msaout 84goldianaMsa.fasta
+```
+
+#### b. *D. intermedia*
+```{bash eval=FALSE}
+vsearch --cluster_fast 92intermediaCons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84intermediaCons.fasta --msaout 84intermediaMsa.fasta
+```
+
+#### c. *D. expansa*
+```{bash eval=FALSE}
+vsearch --cluster_fast 92expansaCons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84expansaCons.fasta --msaout 84expansaMsa.fasta
 ```
 
 ####b. *D. ludoviciana*
 ```{bash eval=FALSE}
-cat *.fasta escu_consensus.fasta
-
-vsearch --cluster_fast ludoviciana_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout cons_escu92.fasta --msaout msa_escu92.fasta
+vsearch --cluster_fast 92ludovicianaCons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84ludovicianaCons.fasta --msaout 84ludovicianaMsa.fasta
 ```
 
-##Step 3: using the output from clustering at 92%, cluster again at 84% similarity
-
-####a. *D. goldiana*
-```{bash eval=FALSE}
-vsearch --cluster_fast 92goldCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84goldCons.fasta --msaout 84goldMsa.fasta
-```
-
-####b. *D. intermedia*
-```{bash eval=FALSE}
-vsearch --cluster_fast 92intermediaCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84intermediaCons.fasta --msaout 92intermediaMsa.fasta
-```
-
-####c. *D. expansa*
-```{bash eval=FALSE}
-vsearch --cluster_fast 92expansaCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84expansaCons.fasta --msaout 84expansaMsa.fasta
-```
-
-####b. *D. ludoviciana*
-```{bash eval=FALSE}
-vsearch --cluster_fast 92ludoCons.fasta --threads 10 --iddef 2 --id 0.92 --consout 84ludoCons.fasta --msaout 84ludoMsa.fasta
-```
-
-####c. Remove collapsed clusters (paralogs) from files clustered at 84% similarity
+### Step 4: Remove collapsed clusters (paralogs) from files clustered at 84% similarity
 
 The remove\_collapsed\_clusters.py script removes all entries that have (the 2nd) seqs > 1.
 
-####a. *D. goldiana*
+#### a. *D. goldiana*
 ```{bash eval=FALSE}
-./remove_collapsed_clusters.py 84goldCons.fasta RCCgold.fasta
+./remove_collapsed_clusters.py 84goldianaCons.fasta RCCgoldiana.fasta
 sta
 
 440468 uncollapsed clusters found
 ```
 
-####b. *D. intermedia*
+#### b. *D. intermedia*
 ```{bash eval=FALSE}
 ./remove_collapsed_clusters.py 84intermediaCons.fasta RCCintermedia.fasta
 
 837895 uncollapsed clusters found
 ```
 
-####c. *D. expansa*
+#### c. *D. expansa*
 ```{bash eval=FALSE}
 ./remove_collapsed_clusters.py 84expansaCons.fasta RCCexpansa.fasta
 
 64631 uncollapsed clusters found
 ```
 
-####b. *D. ludoviciana*
+#### b. *D. ludoviciana*
 ```{bash eval=FALSE}
-./remove_collapsed_clusters.py 84ludoCons.fasta RCCludo.fasta
+./remove_collapsed_clusters.py 84ludovicianaCons.fasta RCCludoviciana.fasta
 
 132480 uncollapsed clusters found
 ```
 
-The resulting RCC\*.fasta files will be used in step 4
+The resulting RCC\*.fasta files will be used in Step 5.
 
-##Step 4: combine the diploid species, re-run VSEARCH clustering and filter
+### Step 5: combine the diploid species, re-run VSEARCH clustering and filter
 
-####a. BEFORE COMBINING
+#### a. BEFORE COMBINING
 Make sure your *D. goldiana*, *D. intermedia*, *D. expansa*, and *D. ludoviciana* individuals are marked separatley within the RCC\*.fasta files. This will make checking to see if each final contig is represented by each species much easier.
 
 ```{bash eval=FALSE}
-sed 's/^>centroid=centroid=/>centroid=centroid=g/g' RCCgold.fasta > gRCCgoldiana.fasta
+sed 's/^>centroid=centroid=/>centroid=centroid=g/g' RCCgoldiana.fasta > gRCCgoldiana.fasta
 
 sed 's/^>centroid=centroid=/>centroid=centroid=i/g' RCCintermedia.fasta > iRCCintermedia.fasta
 
 sed 's/^>centroid=centroid=/>centroid=centroid=e/g' RCCexpansa.fasta > eRCCexpansa.fasta
 
-sed 's/^>centroid=centroid=/>centroid=centroid=l/g' RCCludo.fasta > lRCCludo.fasta
+sed 's/^>centroid=centroid=/>centroid=centroid=l/g' RCCludoviciana.fasta > lRCCludoviciana.fasta
 ```
-####b. Combine the diploids
+#### b. Combine the diploids
 
 ```{bash eval=FALSE}
-cat gRCCgoldiana.fasta iRCCintermedia.fasta eRCCexpansa.fasta lRCCludo.fasta > diploid_consensus.fasta
+cat gRCCgoldiana.fasta iRCCintermedia.fasta eRCCexpansa.fasta lRCCludoviciana.fasta > diploid_consensus.fasta
 ```
-####c. Re-run vsearch with an id (% similarity) of your choice (92,88,86,84...)
+#### c. Re-run vsearch with 84% similarity
 
 This clustering step in done to ensure that the individual contigs isolated are present in all four of the diploid species.
-
-```{bash eval=FALSE}
-# cluster at 92% similarity
-vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.92 --consout 92diploidCons.fasta --msaout 92diploidMsa.fasta
-
-# remove all clusters that are present in only one species
-./presence_filter.pl 92diploidCon.fasta
-
-finished, retained  contigs
-```
-
-```{bash eval=FALSE}
-# cluster at 88% similarity
-vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.88 --consout 88diploidCons.fasta --msaout 88diploidMsa.fasta
-
-# remove all clusters that are present in only one species
-./presence_filter.pl 88diploidCons.fasta
-
-finished, retained contigs
-```
 
 ```{bash eval=FALSE}
 # cluster at 84% similarity
@@ -212,20 +194,20 @@ vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.84 
 # remove all clusters that are present in only one species
 ./presence_filter.pl 84diploidCons.fasta
 
-finished, retained 105428 contigs
+finished, retained contigs
 ```
 
 We chose to use the 84% similarity. The proided us with a large number of contigs present in both species. We are going to apply some much stricter filtering parameters later on in the variant calling step, so it is better to start off with a few more contigs / material in general.
 
 Hooray! Now you have a fresh *de novo* reference with which to align your parsed .FASTQ files!
 
-###Alignment of Reads
+## Alignment of Reads
 
 This portion of the analysis was done on the [Center for High Performance Computing](https://www.chpc.utah.edu/) at the University of Utah.
 
-##Step 1: Prepare the reference sequence
+### Step 1: Prepare the reference sequence
 
-####a. Index the reference (consensus) sequence. 
+#### a. Index the reference (consensus) sequence. 
 
 Here, we used the Burrow-Wheeler Aligner (BWA v. 0.7.10) to index our reference genome. This give the squence position points for the alignment later on.
 
@@ -233,14 +215,14 @@ Here, we used the Burrow-Wheeler Aligner (BWA v. 0.7.10) to index our reference 
 bwa index diploid_consensus_final.fasta 
 ```
 
-####b. Picard tools to create a dictionary
+#### b. Picard tools to create a dictionary
 
 We used Java (OpenJDK) v. 1.8.0 and PicardTools v. 2.9.0
 
 ```{bash eval=FALSE}
 java -jar picard.jar CreateSequenceDictionary REFERENCE=diploid_consensus_final.fasta OUTPUT=diploid_consensus_final.dict
 ```
-####c. Creating the fasta index file
+#### c. Creating the fasta index file
 
 We used SAMTOOLS v. 1.5
 
@@ -248,9 +230,9 @@ We used SAMTOOLS v. 1.5
 samtools faidx diploid_consensus_final.fasta
 ```
 
-###Step 2: Align parsed reads (from ALL individual .FASTQ files) to the *de novo* reference
+### Step 2: Align parsed reads (from ALL individual .FASTQ files) to the *de novo* reference
 
-####a. Align individuals with BWA ALN
+#### a. Align individuals with BWA ALN
 
 See script `bwa_aln.sh`
 
@@ -273,7 +255,7 @@ done
 
 The output is a .SAM file for each individual
 
-####b. Convert files from .SAM to .BAM, sort, and index the individuals using SAMTOOLS
+#### b. Convert files from .SAM to .BAM, sort, and index the individuals using SAMTOOLS
 
 ```{bash eval=FALSE}
 samtools view -o *.bam *.sam
@@ -285,16 +267,16 @@ samtools index -b *.sorted.bam
 
 Because there were about 100 individuals, we used a fork manager to run this through the University of Utah Center for High Performance Computing cluster (CHPC). The result is a .bam, .sorted.bam, and .sorted.bam.bai file for each individual. See the script fork\_view\_sort\_index.pl for an example.
 
-##Step 3: Call Variants
+### Step 3: Call Variants
 
 To call variants, we used the GATK HaplotypeCaller (v. 3.8.0) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
 
-####Diploids
+#### Diploids
 ```{bash eval=FALSE}
 java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
 ```
 
-####Tetraploids
+#### Tetraploids
 ```{bash eval=FALSE}
 java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I tetraploid_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ae_rawVar.g.vcf -out_mode EMIT_VARIANTS_ONLY --variant_index_type LINEAR --variant_index_parameter 128000
 ```
@@ -303,23 +285,17 @@ java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_fi
 grep -v ^# ae.vcf | cut -f 8 | perl -p -i -e 's/DP=(\d+);\S+/\1/' > depth.txt
 ```
 
-##Step 4: filter VCFs
-
-VCFTOOLS (v. 0.1.15) can be used to filter diploids (see below), but because it does not support tetraploids we created a custom Python script to filter instead.
-
-```{bash eval=FALSE}
-vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 2.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf 2ae\_rawVar.vcf
-```
+### Step 4: filter VCFs
 
 The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see **stringency variable** in script below). 
 
-BOTH VCF files need to be filtered this way (2ae\_rawVar.vcf and 4ae\_rawVar.vcf).
+BOTH VCF files need to be filtered this way (2\_rawVar.vcf and 4\_rawVar.vcf).
 
-###Step 5: Find the intersection of variants in diploids and tetraploids
+### Step 5: Find the intersection of variants in diploids and tetraploids
 
 Since we now have two VCF files, we need to combine them again somehow. To do this, we find the **intersection** of the variants in both files, subset, and then re-combine.
 
-####a. Intersection of variants
+#### a. Intersection of variants
 
 ```{bash eval=FALSE}
 perl vcf_checker.pl filtered_2.vcf filtered_4.vcf
@@ -327,7 +303,7 @@ perl vcf_checker.pl filtered_2.vcf filtered_4.vcf
 
 Output is a list of the contigs present in both VCF files called matches.txt
 
-####b. Subset VCF files with list of intersection matches
+#### b. Subset VCF files with list of intersection matches
 
 Do this for both files.
 
@@ -339,7 +315,7 @@ perl subsetVcf.pl matches.vcf filtered_4.vcf
 
 Output is two files: sub\_filtered\_2.vcf and sub\_filtered\_4.vcf
 
-####c. Combine files
+#### c. Combine files
 
 What we are doing here is appending the data from one file onto the end of each matching contig in the other file.
 
@@ -351,9 +327,9 @@ This outputs a file called diploidsAll.vcf
 
 **Add CHROM lines from each to diploidsAll.vcf**
 
-###Population genetics
+## Population genetics
 
-###**Entropy**
+### **Entropy**
 
 Before getting started with ENTROPY, we need to convert our VCF file to a GL (Genotype Likelihood) file.
 
@@ -373,9 +349,9 @@ perl gl2genest.pl out.recode.gl
 ```
 This outputs a file called pntest\_out.recode.gl
 
-###Discriminant Analysis of Principle Components 
+### Discriminant Analysis of Principle Components 
 
-#####a. seed entropy with values from DAPC
+##### a. seed entropy with values from DAPC
 
 Using the R package ADEGENET (v. 2.1.1), run a Discriminate Analysis of Principle Componets (DAPC function) to seed values in ENTROPY so we don't get label swapping. We followed the [DAPC vignette](adegenet.r-forge.r-project.org/files/tutorial-dapc.pdf).
 
@@ -406,7 +382,7 @@ dapc1 <- dapc(dg, grp$grp)
 write.table(dapc1$posterior, "k_est.txt")
 ```
 
-#####b. run ENTROPY
+##### b. run ENTROPY
 
 ```{bash eval=FALSE}
 ./entropy -b 10000 -t 4 -k 2 -i ae_in.gl -o out.hdf5 -m 1 -w 0 -q pop_ests.txt -s 20
@@ -421,7 +397,7 @@ write.table(dapc1$posterior, "k_est.txt")
 -q file with expected starting values for admixture proportions
 -s scalar for Dirichlet init of q, inversly proportional to variance
 
-#####c. ESTPOST - pulling out meaningful things from entropy
+##### c. ESTPOST - pulling out meaningful things from entropy
 
 ```{bash eval=FALSE}
 /home/skinosian/hts_tools/estpost_h5_entropy -o out_d -p deviance -s 3 -w 1 entropy_ae_k2_2.hdf5
@@ -435,7 +411,7 @@ write.table(dapc1$posterior, "k_est.txt")
                              4 = MCMC diagnostic
 - w write parameter identification to file, boolean
 
-###**Visualizing Admixture**
+### **Visualizing Admixture**
 
 ```{r eval=FALSE}
 # read in files from estpost
@@ -488,7 +464,7 @@ plot_q_per_chain <- function(kqlist, xlabel, ...){
 plot_q_per_chain(k2list, df2[,3], 2)
 ```
 
-##Program Versions
+## Program Versions
 
 Below is a list of all program versions used in this analysis. Please note that newer versions of these software packages *may* work for this pipeline, but be aware that usage often changes with new verions. 
 

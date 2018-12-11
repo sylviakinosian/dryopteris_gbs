@@ -18,20 +18,18 @@ while(<IN>){
 	chomp;
 	if(m/^>\*cent/){
 		# change a & e to the indicators of your choice
-		$cnt{'g'}=0;
-		$cnt{'i'}=0;
 		$cnt{'e'}=0;
-		$cnt{'l'}=0;
-		m/centroid=([giel])/ or die "this is weird $_\n";
+		$cnt{'a'}=0;
+		m/centroid=([ae])/ or die "this is weird $_\n";
 		$cnt{$1}++;
 	}	
 	# change a & e to the indicators of your choice
-	elsif(m/centroid=([giel])/){
+	elsif(m/centroid=([ae])/){
 		$cnt{$1}++;
 	}
 	elsif(m/^>consensus/){
 		# change a & e to the indicators of your choice
-		if($cnt{'g'}==1 and $cnt{'i'}==1 and $cnt{'e'}==1 and $cnt{'l'}==1){
+		if($cnt{'a'}==1 and $cnt{'e'}==1){
 			$flag = 1;
 			@seq = ();
 			while($flag==1){

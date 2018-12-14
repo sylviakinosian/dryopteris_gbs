@@ -169,6 +169,7 @@ The resulting RCC\*.fasta files will be used in Step 5.
 #### a. BEFORE COMBINING
 Make sure your *D. goldiana*, *D. intermedia*, *D. expansa*, and *D. ludoviciana* individuals are marked separatley within the RCC\*.fasta files. This will make checking to see if each final contig is represented by each species much easier.
 
+so far have not used this....
 ```{bash eval=FALSE}
 sed 's/^>centroid=centroid=/>centroid=centroid=g/g' RCCgoldiana.fasta > gRCCgoldiana.fasta
 
@@ -230,6 +231,17 @@ We used SAMTOOLS v. 1.5
 samtools faidx diploid_consensus_final.fasta
 ```
 
+Now you should have the following files:
+
+consensus.dict
+consensus.fasta
+consensus.amb
+consensus.ann
+consensus.bwt
+consensus.fai
+consensus.pac
+consensus.sa
+
 ### Step 2: Align parsed reads (from ALL individual .FASTQ files) to the *de novo* reference
 
 #### a. Align individuals with BWA ALN
@@ -265,12 +277,12 @@ samtools sort -o *.sorted.bam *.bam
 samtools index -b *.sorted.bam
 ```
 
-Because there were about 100 individuals, we used a fork manager to run this through the University of Utah Center for High Performance Computing cluster (CHPC). The result is a .bam, .sorted.bam, and .sorted.bam.bai file for each individual. See the script fork\_view\_sort\_index.pl for an example.
-
 ### Step 3: Call Variants
 
-To call variants, we used the GATK HaplotypeCaller (v. 3.8.0) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
+To call variants, we used the GATK HaplotypeCaller (v. 4) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
 
+
+samtools mpileup and bcftools call??
 #### Diploids
 ```{bash eval=FALSE}
 java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY

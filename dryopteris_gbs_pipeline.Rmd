@@ -433,14 +433,12 @@ write.table(dapc1$posterior, "k_est.txt")
 ### **Visualizing Admixture**
 
 ```{r eval=FALSE}
-# read in files from estpost
-k2_1 <- read.csv("k1.txt", sep = ',', header = F)
-k2_2 <- read.csv("k3.txt", sep = ',', header = F)
-k2_3 <- read.csv("k4.txt", sep = ',', header = F)
+##############################
+# custom functions
+# read in to R before starting
+##############################
 
-names <- read.csv("names.txt", sep ',', header = F)
-
-# this function averages chains for a given k
+# averages up to 3 chains for a given k
 avg_k <- function(kval, n_inds = 16, chain1, chain2 = chain1, chain3 = chain1){
 	df <- as.data.frame(matrix(nrow = kval*n_inds,  ncol = 4))
 	colnames(df)[1:4] <- c("chain1", "chain2", "chain3", "avg")
@@ -451,10 +449,8 @@ avg_k <- function(kval, n_inds = 16, chain1, chain2 = chain1, chain3 = chain1){
 	return(df)
 }
 
-avg2 <- avg_k(kval = 2, chain1 = k2_1, chain2 = k2_2, chain3 = k2_3)
-
 # makes a data frame with your averaged chains
-make_df <- function(k_file, k_val, n_inds = 16, names){
+make_df <- function(kfile, kval, ninds = 16, names){
 	x <- 1
 	df <- as.data.frame(matrix(nrow = n_inds, ncol = k_val+x))
 	for (i in 1:k_val){
@@ -465,9 +461,6 @@ make_df <- function(k_file, k_val, n_inds = 16, names){
 	df <- df[order(df[,ncol(df)]),]
 	return(df)
 }
-
-df2 <- make_df(k_file = avg2, k_val = 2, names = names)
-k2list <- list(k2_ordered[,1:2])
 
 # function to plot each chain for a given k
 plot_q_per_chain <- function(kqlist, xlabel, ...){
@@ -480,12 +473,43 @@ plot_q_per_chain <- function(kqlist, xlabel, ...){
  	}
 }
 
-plot_q_per_chain(k2list, df2[,3], 2)
+################################
+# read in all files from estpost
+################################
+
+k2_1 <- read.csv("k2_1.txt", sep = ',', header = F)
+k2_2 <- read.csv("k2_2.txt", sep = ',', header = F)
+k2_3 <- read.csv("k2_3.txt", sep = ',', header = F)
+
+k4 <- read.csv("k_4.txt", sep = ',', header = T)
+k4 <- k4[,-1]
+k5 <- read.csv("k_5.txt", sep = ',', header = T)
+k5 <- k5[,-1]
+k6 <- read.csv("k_5.txt", sep = ',', header = T)
+k6 <- k6[,-1]
+
+# list of names and IDs for each individual
+names <- read.csv("names.txt", sep ',', header = F)
+
+a4 <- avg_k(kval = 4, chain1 = k4)
+df4 <- make_df(kfile = a4, kval = 4, names = names)
+a5 <- avg_k(kval = 5, chain1 = k4)
+df5 <- make_df(kfile = a5, kval = 5, names = names)
+a6 <- avg_k(kval = 6, chain1 = k4)
+df6 <- make_df(kfile = a6, kval = 6, names = names)
+
+# create list for plot_q_per_chain
+
+k4list <- list(df4[,1:4])
+k5list <- list(df5[,1:4])
+k6list <- list(df6[,1:4])
+
+plot_q_per_chain(k4list, df4[,5])
 ```
 
 ## Program Versions
 
-Below is a list of all program versions used in this analysis. Please note that newer versions of these software packages *may* work for this pipeline, but be aware that usage often changes with new verions. 
+Below is a list of all program versions used in this analysis. Please note that newer versions of these software packages *may* work for this pipeline, but be aware that usage often changes with new verions. Read all documentation for each program carefully before using.
 
 [Perl 5](https://www.perl.org/)
 

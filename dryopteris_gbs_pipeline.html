@@ -383,7 +383,7 @@ $(document).ready(function () {
 <p>This portion of the analysis was done on the <a href="https://www.rc.ufl.edu/services/hipergator/">HiperGator</a> at the University of Florida, Gainsville.</p>
 <div id="parse-barcodes-split-.fastq-by-individual-combine-paired-end-reads" class="section level3">
 <h3>1) Parse barcodes, split .FASTQ by individual, combine paired end reads</h3>
-<p>This first step uses perl scripts to parse the barcodes from the raw GBS .FASTQ data and then split that raw file into indiviual .FASTQ files. Note that all Perl were run using Perl 5 (<a href="http://www.perl.org" class="uri">http://www.perl.org</a>).</p>
+<p>This first step uses Perl (v. 5, <a href="http://www.perl.org" class="uri">http://www.perl.org</a>) scripts to parse the barcodes from the raw GBS .FASTQ data and then split that raw file into indiviual .FASTQ files.</p>
 <div id="a.-parse-barcodes" class="section level4">
 <h4>a. Parse barcodes</h4>
 <p>The first scipt, parse_barcodes768.pl, requires two files: a barcodes file and the raw GBS.FASTQ file. The barcodes.txt file has three columns: the index name, barcode, and sample name for each indiviual. See barcodes.txt for an example.</p>
@@ -392,7 +392,7 @@ $(document).ready(function () {
 </div>
 <div id="b.-split-fastq-by-individual" class="section level4">
 <h4>b. Split FASTQ by individual</h4>
-<p>The next script, splitFastq_ms.pl, requires two files: a list of individuals and the parsed.GBS.FASTQ file (one of the output file from parse_barcodes768.pl). The individuals.txt file is simply a list of the names for each individual you would like to create a .FASTQ file for (a text file contain one column, with one name per row, no header).</p>
+<p>The next script, splitFastq_ms.pl, requires two files: a list of individuals and the parsed.FASTQ file (one of the output file from parse_barcodes768.pl). The individuals.txt file is simply a list of the names for each individual you would like to create a .FASTQ file for (a text file contain one column, with one name per row, no header).</p>
 <p>Usage:</p>
 <pre class="bash"><code>perl splitFastq_ms.pl individuals.txt parsed_raw_reads.fastq</code></pre>
 <p>Now, you should have a .FASTQ file for each individual listed in the indivduals.txt file.</p>
@@ -408,14 +408,14 @@ $(document).ready(function () {
 </div>
 <div id="please-note-this-is-for-the-diploid-species-only-d.-goldiana-d.-intermedia-d.-expansa-and-d.-ludoviciana." class="section level3">
 <h3>PLEASE NOTE: this is for the diploid species ONLY (<em>D. goldiana</em>, <em>D. intermedia</em>, <em>D. expansa</em> and <em>D. ludoviciana</em>).</h3>
-<p>Now that we have extracted the raw information for each individual, it’s time to build our reference genome. There is no reference genome available for <em>Dryopteris</em>, so we are going to build one <em>de novo</em> using the two diploid species. Since the tetraploids are most likely allotetraploids (of hybrid origin) we are only using the diploids because that will capture most of the sequence variation and is cleaner than dealing with the possibly divergent sequences on the tetraploid hybrids.</p>
-<p>We decided to build the reference genome by clustering similar sequences within species, and then combining those sequences across individuals. For the final reference, we made sure that each contig was represented in BOTH diploid species.</p>
+<p>Now that we have extracted the raw information for each individual, it’s time to build our reference genome. There is no reference genome available for <em>Dryopteris</em>, so we are going to build one <em>de novo</em> using the two diploid species. Since the tetraploids are allotetraploids (of hybrid origin) we are only using the diploids because that will capture most of the sequence variation and is cleaner than dealing with the possibly divergent sequences on the tetraploid hybrids.</p>
+<p>We decided to build the reference genome by clustering similar sequences within species, and then combining those sequences across individuals.</p>
 <p><strong>Before starting</strong>, transfer the .FASTQ files for the diploid individuals to separate folders. This will make the clustering within each species much easier.</p>
 </div>
 <div id="step-1-cluster-highly-similar-sequences-in-individual-.fastq-files" class="section level3">
 <h3>Step 1: Cluster highly similar sequences in individual .FASTQ files</h3>
-<div id="a." class="section level4">
-<h4>a.</h4>
+<div id="a.-convert-fastq-to-fasta" class="section level4">
+<h4>a. Convert FASTQ to FASTA</h4>
 <p>The first part of this step is to convert the .FASTQ files into .FASTA files using the program SEQTK (v. 1.2-r102-dirty). See the script seqtk.sh (below) for an example of how to loop through the files in a directory.</p>
 <pre class="bash"><code>for i in *.fastq; do
     id=$(echo $i | cut -f1 -d.)
@@ -423,9 +423,10 @@ $(document).ready(function () {
     seqtk seq -a $i &gt; $id.fasta
     done</code></pre>
 </div>
-<div id="b." class="section level4">
-<h4>b.</h4>
-<p>The second part is to use the program VSEARCH (v. 2.4.2) to cluster sequences <strong>within each individual</strong> with a 98% similarity to create “centroids”.</p>
+<div id="b.-create-centroids" class="section level4">
+<h4>b. Create centroids</h4>
+<p>The second part is to use the program VSEARCH (v. 2.4.2) to cluster sequences <strong>within each individual</strong> with a 98% similarity to create “centroids” or highly similar sequences with which to base the pseudo-reference.</p>
+<p>Do this for each individual of each diploid species.</p>
 <p>usage of vsearch.sh:</p>
 <pre class="bash"><code>vsearch.sh 0.98 centroids</code></pre>
 <p>VSEARCH command “under the hood” of vsearch.sh:</p>
@@ -508,32 +509,31 @@ sta
 </div>
 <div id="step-5-combine-the-diploid-species-re-run-vsearch-clustering-and-filter" class="section level3">
 <h3>Step 5: combine the diploid species, re-run VSEARCH clustering and filter</h3>
-<div id="a.-before-combining" class="section level4">
-<h4>a. BEFORE COMBINING</h4>
-<p>Make sure your <em>D. goldiana</em>, <em>D. intermedia</em>, <em>D. expansa</em>, and <em>D. ludoviciana</em> individuals are marked separatley within the RCC*.fasta files. This will make checking to see if each final contig is represented by each species much easier.</p>
-<pre class="bash"><code>sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=g/g' RCCgoldiana.fasta &gt; gRCCgoldiana.fasta
+<!-- #### a. BEFORE COMBINING
+Make sure your *D. goldiana*, *D. intermedia*, *D. expansa*, and *D. ludoviciana* individuals are marked separatley within the RCC\*.fasta files. This will make checking to see if each final contig is represented by each species much easier.
 
-sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=i/g' RCCintermedia.fasta &gt; iRCCintermedia.fasta
+so far have not used this....
 
-sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=e/g' RCCexpansa.fasta &gt; eRCCexpansa.fasta
+```bash
+sed 's/^>centroid=centroid=/>centroid=centroid=g/g' RCCgoldiana.fasta > gRCCgoldiana.fasta
 
-sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=l/g' RCCludoviciana.fasta &gt; lRCCludoviciana.fasta</code></pre>
+sed 's/^>centroid=centroid=/>centroid=centroid=i/g' RCCintermedia.fasta > iRCCintermedia.fasta
+
+sed 's/^>centroid=centroid=/>centroid=centroid=e/g' RCCexpansa.fasta > eRCCexpansa.fasta
+
+sed 's/^>centroid=centroid=/>centroid=centroid=l/g' RCCludoviciana.fasta > lRCCludoviciana.fasta
+``` -->
+<div id="a.-combine-the-diploids" class="section level4">
+<h4>a. Combine the diploids</h4>
+<p>```</p>
+<pre class="bash"><code>cat RCCgoldiana.fasta RCCintermedia.fasta RCCexpansa.fasta RCCludoviciana.fasta &gt; diploid_consensus.fasta</code></pre>
 </div>
-<div id="b.-combine-the-diploids" class="section level4">
-<h4>b. Combine the diploids</h4>
-<pre class="bash"><code>cat gRCCgoldiana.fasta iRCCintermedia.fasta eRCCexpansa.fasta lRCCludoviciana.fasta &gt; diploid_consensus.fasta</code></pre>
-</div>
-<div id="c.-re-run-vsearch-with-84-similarity" class="section level4">
-<h4>c. Re-run vsearch with 84% similarity</h4>
-<p>This clustering step in done to ensure that the individual contigs isolated are present in all four of the diploid species.</p>
+<div id="b.-re-run-vsearch-with-84-similarity" class="section level4">
+<h4>b. Re-run vsearch with 84% similarity</h4>
 <pre class="bash"><code># cluster at 84% similarity
-vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.84 --consout 84diploidCons.fasta --msaout 84diploidMsa.fasta
-
-# remove all clusters that are present in only one species
-./presence_filter.pl 84diploidCons.fasta
-
-finished, retained contigs</code></pre>
+vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.84 --consout 84diploidCons.fasta --msaout 84diploidMsa.fasta</code></pre>
 <p>We chose to use the 84% similarity. The proided us with a large number of contigs present in both species. We are going to apply some much stricter filtering parameters later on in the variant calling step, so it is better to start off with a few more contigs / material in general.</p>
+<p>Copy and rename 84diploidCons –&gt; diploid_consensus_final.fasta</p>
 <p>Hooray! Now you have a fresh <em>de novo</em> reference with which to align your parsed .FASTQ files!</p>
 </div>
 </div>
@@ -557,6 +557,8 @@ finished, retained contigs</code></pre>
 <h4>c. Creating the fasta index file</h4>
 <p>We used SAMTOOLS v. 1.5</p>
 <pre class="bash"><code>samtools faidx diploid_consensus_final.fasta</code></pre>
+<p>Now you should have the following files:</p>
+<p>consensus.dict consensus.fasta consensus.amb consensus.ann consensus.bwt consensus.fai consensus.pac consensus.sa</p>
 </div>
 </div>
 <div id="step-2-align-parsed-reads-from-all-individual-.fastq-files-to-the-de-novo-reference" class="section level3">
@@ -564,9 +566,9 @@ finished, retained contigs</code></pre>
 <div id="a.-align-individuals-with-bwa-aln" class="section level4">
 <h4>a. Align individuals with BWA ALN</h4>
 <p>See script <code>bwa_aln.sh</code></p>
-<pre class="bash"><code>#! /bin/bash
+<pre class="bash"><code>#!/bin/bash
 
-REF='/uufs/chpc.utah.edu/common/home/wolf-group2/skinosian/3pteridium/parse/fastq/ae_consensus_final.fasta'
+REF='/path/to/diploid_consensus_final.fasta'
 
 for i in *.fastq;
 do
@@ -587,52 +589,78 @@ done</code></pre>
 samtools sort -o *.sorted.bam *.bam
  
 samtools index -b *.sorted.bam</code></pre>
-<p>Because there were about 100 individuals, we used a fork manager to run this through the University of Utah Center for High Performance Computing cluster (CHPC). The result is a .bam, .sorted.bam, and .sorted.bam.bai file for each individual. See the script fork_view_sort_index.pl for an example.</p>
 </div>
 </div>
 <div id="step-3-call-variants" class="section level3">
 <h3>Step 3: Call Variants</h3>
-<p>To call variants, we used the GATK HaplotypeCaller (v. 3.8.0) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.</p>
-<div id="diploids" class="section level4">
-<h4>Diploids</h4>
-<pre class="bash"><code>java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY</code></pre>
-</div>
-<div id="tetraploids" class="section level4">
-<h4>Tetraploids</h4>
-<pre class="bash"><code>java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I tetraploid_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ae_rawVar.g.vcf -out_mode EMIT_VARIANTS_ONLY --variant_index_type LINEAR --variant_index_parameter 128000</code></pre>
-<pre class="bash"><code>grep -v ^# ae.vcf | cut -f 8 | perl -p -i -e 's/DP=(\d+);\S+/\1/' &gt; depth.txt</code></pre>
-</div>
+<p>mpileup <!--
+To call variants, we used the GATK HaplotypeCaller (v. 4) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
+
+samtools mpileup and bcftools call??
+#### Diploids
+
+```bash
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
+```
+
+#### Tetraploids
+
+```bash
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I tetraploid_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ae_rawVar.g.vcf -out_mode EMIT_VARIANTS_ONLY --variant_index_type LINEAR --variant_index_parameter 128000
+```
+
+
+```bash
+grep -v ^# ae.vcf | cut -f 8 | perl -p -i -e 's/DP=(\d+);\S+/\1/' > depth.txt
+```
+--></p>
 </div>
 <div id="step-4-filter-vcfs" class="section level3">
 <h3>Step 4: filter VCFs</h3>
-<p>VCFTOOLS (v. 0.1.15) can be used to filter diploids (see below), but because it does not support tetraploids we created a custom Python script to filter instead.</p>
-<pre class="bash"><code>vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 2.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf 2ae\_rawVar.vcf</code></pre>
+<pre class="bash"><code>vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 4.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf all_dryopteris_variants.vcf</code></pre>
+<p>4359 variants</p>
 <p>The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see <strong>stringency variable</strong> in script below).</p>
-<p>BOTH VCF files need to be filtered this way (2ae_rawVar.vcf and 4ae_rawVar.vcf).</p>
-</div>
-<div id="step-5-find-the-intersection-of-variants-in-diploids-and-tetraploids" class="section level3">
-<h3>Step 5: Find the intersection of variants in diploids and tetraploids</h3>
-<p>Since we now have two VCF files, we need to combine them again somehow. To do this, we find the <strong>intersection</strong> of the variants in both files, subset, and then re-combine.</p>
-<div id="a.-intersection-of-variants" class="section level4">
-<h4>a. Intersection of variants</h4>
-<pre class="bash"><code>perl vcf_checker.pl filtered_2.vcf filtered_4.vcf</code></pre>
-<p>Output is a list of the contigs present in both VCF files called matches.txt</p>
-</div>
-<div id="b.-subset-vcf-files-with-list-of-intersection-matches" class="section level4">
-<h4>b. Subset VCF files with list of intersection matches</h4>
-<p>Do this for both files.</p>
-<pre class="bash"><code>perl subsetVcf.pl matches.vcf filtered_2.vcf
+<!--
+BOTH VCF files need to be filtered this way (2\_rawVar.vcf and 4\_rawVar.vcf).
 
-perl subsetVcf.pl matches.vcf filtered_4.vcf</code></pre>
-<p>Output is two files: sub_filtered_2.vcf and sub_filtered_4.vcf</p>
-</div>
-<div id="c.-combine-files" class="section level4">
-<h4>c. Combine files</h4>
-<p>What we are doing here is appending the data from one file onto the end of each matching contig in the other file.</p>
-<pre class="bash"><code>perl combine.pl sub\_filtered\_2.vcf sub\_filtered\_4.vcf</code></pre>
-<p>This outputs a file called diploidsAll.vcf</p>
-<p><strong>Add CHROM lines from each to diploidsAll.vcf</strong></p>
-</div>
+### Step 5: Find the intersection of variants in diploids and tetraploids
+
+Since we now have two VCF files, we need to combine them again somehow. To do this, we find the **intersection** of the variants in both files, subset, and then re-combine.
+
+#### a. Intersection of variants
+
+
+```bash
+perl vcf_checker.pl filtered_2.vcf filtered_4.vcf
+```
+
+Output is a list of the contigs present in both VCF files called matches.txt
+
+#### b. Subset VCF files with list of intersection matches
+
+Do this for both files.
+
+
+```bash
+perl subsetVcf.pl matches.vcf filtered_2.vcf
+
+perl subsetVcf.pl matches.vcf filtered_4.vcf
+```
+
+Output is two files: sub\_filtered\_2.vcf and sub\_filtered\_4.vcf
+
+#### c. Combine files
+
+What we are doing here is appending the data from one file onto the end of each matching contig in the other file.
+
+
+```bash
+perl combine.pl sub\_filtered\_2.vcf sub\_filtered\_4.vcf
+```
+
+This outputs a file called diploidsAll.vcf
+
+**Add CHROM lines from each to diploidsAll.vcf** -->
 </div>
 </div>
 <div id="population-genetics" class="section level2">
@@ -664,42 +692,40 @@ dt &lt;- t(d)
 # convert to genind object
 dg &lt;- df2genind(dt, sep = &quot; &quot;, ploidy = 2)
 
-grp &lt;- find.clusters(dg, max.n.clust = 15)
-# number of PCs retained: 60
-# number of clusters: 2
+grp &lt;- find.clusters(dg, max.n.clust = 6)
+# number of PCs retained: 
+# number of clusters: 
 
-head(grp$grp, 97)
+head(grp$grp, 16)
 
 # get likelihood assignments
 
 dapc1 &lt;- dapc(dg, grp$grp)
-# PCs 60
-# discriminant dunctions: 1
+# PCs: 
+# discriminant functions:
 
 write.table(dapc1$posterior, &quot;k_est.txt&quot;)</code></pre>
 </div>
 <div id="b.-run-entropy" class="section level5">
 <h5>b. run ENTROPY</h5>
-<pre class="bash"><code>./entropy -b 10000 -t 4 -k 2 -i ae_in.gl -o out.hdf5 -m 1 -w 0 -q pop_ests.txt -s 20</code></pre>
+<pre class="bash"><code>./entropy -b 10000 -l 50000 -t 4 -k 2 -i ae_in.gl -o out.hdf5 -m 1 -w 0 -q pop_ests.txt -s 20</code></pre>
 <p>-b discard the first n MCMC samples as a burn-in -t Thin MCMC samples by recording everyth nth value -k number of population clusters -i GL format infile -o HDF5 format outfile -m infile is in genotype likelihood format -w output includes population allele frequencies -q file with expected starting values for admixture proportions -s scalar for Dirichlet init of q, inversly proportional to variance</p>
 </div>
 <div id="c.-estpost---pulling-out-meaningful-things-from-entropy" class="section level5">
 <h5>c. ESTPOST - pulling out meaningful things from entropy</h5>
-<pre class="bash"><code>/home/skinosian/hts_tools/estpost_h5_entropy -o out_d -p deviance -s 3 -w 1 entropy_ae_k2_2.hdf5</code></pre>
+<pre class="bash"><code>./estpost_entropy -o k2.txt -p q -s 0 -w 1 entropy_ae_k2_2.hdf5</code></pre>
 <p>-o outfile -p name of parameter to summarize -s which summary to perform: 0 = posterior estimates and credible intervals 1 = histogram of posterior samples 2 = convert to plain text 3 = calculate DIC 4 = MCMC diagnostic - w write parameter identification to file, boolean</p>
 </div>
 </div>
 <div id="visualizing-admixture" class="section level3">
 <h3><strong>Visualizing Admixture</strong></h3>
-<pre class="r"><code># read in files from estpost
-k2_1 &lt;- read.csv(&quot;k2_1.txt&quot;, sep = ',', header = F)
-k2_2 &lt;- read.csv(&quot;k2_2.txt&quot;, sep = ',', header = F)
-k2_3 &lt;- read.csv(&quot;k2_3.txt&quot;, sep = ',', header = F)
+<pre class="r"><code>##############################
+# custom functions
+# read in to R before starting
+##############################
 
-names &lt;- read.csv(&quot;names.txt&quot;, sep ',', header = F)
-
-# this function averages chains for a given k
-avg_k &lt;- function(kval, n_inds = 97, chain1, chain2, chain3){
+# averages up to 3 chains for a given k
+avg_k &lt;- function(kval, n_inds = 16, chain1, chain2 = chain1, chain3 = chain1){
     df &lt;- as.data.frame(matrix(nrow = kval*n_inds,  ncol = 4))
     colnames(df)[1:4] &lt;- c(&quot;chain1&quot;, &quot;chain2&quot;, &quot;chain3&quot;, &quot;avg&quot;)
     df[,1] &lt;- chain1[,1]    
@@ -709,10 +735,8 @@ avg_k &lt;- function(kval, n_inds = 97, chain1, chain2, chain3){
     return(df)
 }
 
-avg2 &lt;- avg_k(kval = 2, chain1 = k2_1, chain2 = k2_2, chain3 = k2_3)
-
 # makes a data frame with your averaged chains
-make_df &lt;- function(k_file, k_val, n_inds = 97,  names){
+make_df &lt;- function(kfile, kval, ninds = 16, names){
     x &lt;- 1
     df &lt;- as.data.frame(matrix(nrow = n_inds, ncol = k_val+x))
     for (i in 1:k_val){
@@ -724,12 +748,9 @@ make_df &lt;- function(k_file, k_val, n_inds = 97,  names){
     return(df)
 }
 
-df2 &lt;- make_df(kfile = avg2, k_val = 2, names = names)
-k2list &lt;- list(k2_ordered[,1:2])
-
 # function to plot each chain for a given k
 plot_q_per_chain &lt;- function(kqlist, xlabel, ...){
-    cols &lt;- c('#A8FFFD', '#FFA8AA', '#BB61C3', '#69C261','#A39D9D', '#FFFF00', '#C1C6FF','#26CDCD', '#E4D5EF', '#CDBA8F', '#B862D3', '#79D958', '#CA4B87', '#D2C948', '#6386CA', '#D1543B', '#0D0D41')  
+    cols &lt;- c('#D62227','#F38020','#F5C527','#8FBA3E','#40B8D8','#71449A')  
     par(mfrow= c(length(kqlist),1), mar=c(4,2,1,1) + 0.1, oma= c(5,0,0,0), mgp= c(0,1,0))
     chain &lt;- seq(1, length(kqlist), 1) 
     for(i in 1:length(kqlist)){
@@ -738,12 +759,43 @@ plot_q_per_chain &lt;- function(kqlist, xlabel, ...){
     }
 }
 
-plot_q_per_chain(k2list, df2[,3], 2)</code></pre>
+################################
+# read in all files from estpost
+################################
+
+k2_1 &lt;- read.csv(&quot;k2_1.txt&quot;, sep = ',', header = F)
+k2_2 &lt;- read.csv(&quot;k2_2.txt&quot;, sep = ',', header = F)
+k2_3 &lt;- read.csv(&quot;k2_3.txt&quot;, sep = ',', header = F)
+
+k4 &lt;- read.csv(&quot;k_4.txt&quot;, sep = ',', header = T)
+k4 &lt;- k4[,-1]
+k5 &lt;- read.csv(&quot;k_5.txt&quot;, sep = ',', header = T)
+k5 &lt;- k5[,-1]
+k6 &lt;- read.csv(&quot;k_5.txt&quot;, sep = ',', header = T)
+k6 &lt;- k6[,-1]
+
+# list of names and IDs for each individual
+names &lt;- read.csv(&quot;names.txt&quot;, sep ',', header = F)
+
+a4 &lt;- avg_k(kval = 4, chain1 = k4)
+df4 &lt;- make_df(kfile = a4, kval = 4, names = names)
+a5 &lt;- avg_k(kval = 5, chain1 = k4)
+df5 &lt;- make_df(kfile = a5, kval = 5, names = names)
+a6 &lt;- avg_k(kval = 6, chain1 = k4)
+df6 &lt;- make_df(kfile = a6, kval = 6, names = names)
+
+# create list for plot_q_per_chain
+
+k4list &lt;- list(df4[,1:4])
+k5list &lt;- list(df5[,1:4])
+k6list &lt;- list(df6[,1:4])
+
+plot_q_per_chain(k4list, df4[,5])</code></pre>
 </div>
 </div>
 <div id="program-versions" class="section level2">
 <h2>Program Versions</h2>
-<p>Below is a list of all program versions used in this analysis. Please note that newer versions of these software packages <em>may</em> work for this pipeline, but be aware that usage often changes with new verions.</p>
+<p>Below is a list of all program versions used in this analysis. Please note that newer versions of these software packages <em>may</em> work for this pipeline, but be aware that usage often changes with new verions. Read all documentation for each program carefully before using.</p>
 <p><a href="https://www.perl.org/">Perl 5</a></p>
 <p><a href="https://www.python.org/downloads/release/python-2713/">Python 2.7.13</a></p>
 <p><a href="https://sourceforge.net/projects/samtools/files/samtools/1.5/">SAMtools v. 1.5</a></p>

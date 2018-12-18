@@ -168,7 +168,7 @@ The resulting RCC\*.fasta files will be used in Step 5.
 
 ### Step 5: combine the diploid species, re-run VSEARCH clustering and filter
 
-<!-- #### a. BEFORE COMBINING
+#### a. BEFORE COMBINING
 Make sure your *D. goldiana*, *D. intermedia*, *D. expansa*, and *D. ludoviciana* individuals are marked separatley within the RCC\*.fasta files. This will make checking to see if each final contig is represented by each species much easier.
 
 so far have not used this....
@@ -180,18 +180,34 @@ sed 's/^>centroid=centroid=/>centroid=centroid=i/g' RCCintermedia.fasta > iRCCin
 sed 's/^>centroid=centroid=/>centroid=centroid=e/g' RCCexpansa.fasta > eRCCexpansa.fasta
 
 sed 's/^>centroid=centroid=/>centroid=centroid=l/g' RCCludoviciana.fasta > lRCCludoviciana.fasta
-``` -->
+```
 
 #### a. Combine the diploids
 
+*intermedia* and *expansa*
 ```{bash eval=FALSE}
-cat RCCgoldiana.fasta RCCintermedia.fasta RCCexpansa.fasta RCCludoviciana.fasta > diploid_consensus.fasta
+cat iRCCintermedia.fasta eRCCexpansa.fasta > ex_int_cons.fasta
 ```
+
+*goldiana* and *ludoviciana*
+```{bash eval=FALSE}
+cat gRCCgoldiana.fasta lRCCludoviciana.fasta > g_l_cons.fasta
+```
+
 #### b. Re-run vsearch with 84% similarity
 
 ```{bash eval=FALSE}
 # cluster at 84% similarity
 vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.84 --consout 84diploidCons.fasta --msaout 84diploidMsa.fasta
+
+# make sure each contig is present in each diploid
+./presence_filter.pl ex_int_cons.fasta
+
+# remove blank contigs
+grep -i -B 1 -E '^[[:upper:]]+$' contigs_84eiMsa.fasta > ei_ref.fasta
+
+# using vim, remove -- lines
+# :g/^--$/d
 ```
 
 We chose to use the 84% similarity. The proided us with a large number of contigs present in both species. We are going to apply some much stricter filtering parameters later on in the variant calling step, so it is better to start off with a few more contigs / material in general.
@@ -249,7 +265,7 @@ See script `bwa_aln.sh`
 ```{bash eval=FALSE}
 #!/bin/bash
 
-REF='/path/to/diploid_consensus_final.fasta'
+REF='/path/to/consensus_final.fasta'
 
 for i in *.fastq;
 do
@@ -277,8 +293,6 @@ samtools index -b *.sorted.bam
 
 ### Step 3: Call Variants
 
-mpileup
-<!--
 To call variants, we used the GATK HaplotypeCaller (v. 4) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
 
 samtools mpileup and bcftools call??
@@ -287,6 +301,7 @@ samtools mpileup and bcftools call??
 java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
 ```
 
+<!--
 #### Tetraploids
 ```{bash eval=FALSE}
 java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I tetraploid_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ae_rawVar.g.vcf -out_mode EMIT_VARIANTS_ONLY --variant_index_type LINEAR --variant_index_parameter 128000
@@ -300,10 +315,9 @@ grep -v ^# ae.vcf | cut -f 8 | perl -p -i -e 's/DP=(\d+);\S+/\1/' > depth.txt
 ### Step 4: filter VCFs
 
 ```{bash eval=FALSE}
-vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 4.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf all_dryopteris_variants.vcf
+vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 4.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf rawVar.vcf
 ```
-
-4359 variants
+Kept 2345 out of a possible 14593 sites
 
 The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see **stringency variable** in script below). 
  
@@ -390,7 +404,7 @@ grp <- find.clusters(dg, max.n.clust = 6)
 # number of PCs retained: 
 # number of clusters: 
 
-head(grp$grp, 16)
+head(grp$grp, 8)
 
 # get likelihood assignments
 
@@ -452,10 +466,10 @@ avg_k <- function(kval, n_inds = 16, chain1, chain2 = chain1, chain3 = chain1){
 # makes a data frame with your averaged chains
 make_df <- function(kfile, kval, ninds = 16, names){
 	x <- 1
-	df <- as.data.frame(matrix(nrow = n_inds, ncol = k_val+x))
-	for (i in 1:k_val){
-		df[,i] <- k_file[x:(n_inds*i),4]
-		x <- x+n_inds
+	df <- as.data.frame(matrix(nrow = ninds, ncol = kval+x))
+	for (i in 1:kval){
+		df[,i] <- kfile[x:(ninds*i),4]
+		x <- x+ninds
 	}
 	df[,ncol(df)] <- names
 	df <- df[order(df[,ncol(df)]),]
@@ -485,25 +499,26 @@ k4 <- read.csv("k_4.txt", sep = ',', header = T)
 k4 <- k4[,-1]
 k5 <- read.csv("k_5.txt", sep = ',', header = T)
 k5 <- k5[,-1]
-k6 <- read.csv("k_5.txt", sep = ',', header = T)
+k6 <- read.csv("k_6.txt", sep = ',', header = T)
 k6 <- k6[,-1]
 
 # list of names and IDs for each individual
 names <- read.csv("names.txt", sep ',', header = F)
 
+# create data frames for each k
 a4 <- avg_k(kval = 4, chain1 = k4)
 df4 <- make_df(kfile = a4, kval = 4, names = names)
-a5 <- avg_k(kval = 5, chain1 = k4)
+a5 <- avg_k(kval = 5, chain1 = k5)
 df5 <- make_df(kfile = a5, kval = 5, names = names)
-a6 <- avg_k(kval = 6, chain1 = k4)
+a6 <- avg_k(kval = 6, chain1 = k6)
 df6 <- make_df(kfile = a6, kval = 6, names = names)
 
 # create list for plot_q_per_chain
-
 k4list <- list(df4[,1:4])
-k5list <- list(df5[,1:4])
-k6list <- list(df6[,1:4])
+k5list <- list(df5[,1:5])
+k6list <- list(df6[,1:6])
 
+# plot each k
 plot_q_per_chain(k4list, df4[,5])
 ```
 

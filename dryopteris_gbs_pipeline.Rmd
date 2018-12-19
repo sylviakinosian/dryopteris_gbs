@@ -184,6 +184,8 @@ sed 's/^>centroid=centroid=/>centroid=centroid=l/g' RCCludoviciana.fasta > lRCCl
 
 #### a. Combine the diploids
 
+We are going to be working with the data in two separate clades. The *intermedia - expansa - campyloptera* clade and the *goldiana - ludoviciana - celsa* clade. The evoltionary distance between the two groups is too great for GBS data to be informative across.
+
 *intermedia* and *expansa*
 ```{bash eval=FALSE}
 cat iRCCintermedia.fasta eRCCexpansa.fasta > ex_int_cons.fasta
@@ -198,7 +200,7 @@ cat gRCCgoldiana.fasta lRCCludoviciana.fasta > g_l_cons.fasta
 
 ```{bash eval=FALSE}
 # cluster at 84% similarity
-vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.84 --consout 84diploidCons.fasta --msaout 84diploidMsa.fasta
+vsearch --cluster_fast ex_int_cons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84diploidCons.fasta --msaout 84diploidMsa.fasta
 
 # make sure each contig is present in each diploid
 ./presence_filter.pl ex_int_cons.fasta
@@ -210,11 +212,21 @@ grep -i -B 1 -E '^[[:upper:]]+$' contigs_84eiMsa.fasta > ei_ref.fasta
 # :g/^--$/d
 ```
 
+```{bash eval=FALSE}
+# cluster at 84% similarity
+vsearch --cluster_fast ex_int_cons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84glCons.fasta --msaout 84glMsa.fasta
+
+# make sure each contig is present in each diploid
+./presence_filter.pl 84glMsa.fasta
+
+# remove blank contigs
+grep -i -B 1 -E '^[[:upper:]]+$' contigs_84glMsa.fasta > gl_ref.fasta
+
+# using vim, remove -- lines
+# :g/^--$/d
+```
+
 We chose to use the 84% similarity. The proided us with a large number of contigs present in both species. We are going to apply some much stricter filtering parameters later on in the variant calling step, so it is better to start off with a few more contigs / material in general.
-
-Copy and rename 84diploidCons --> diploid\_consensus\_final.fasta
-
-Hooray! Now you have a fresh *de novo* reference with which to align your parsed .FASTQ files!
 
 ## Alignment of Reads
 
@@ -222,12 +234,14 @@ This portion of the analysis was done on the [Center for High Performance Comput
 
 ### Step 1: Prepare the reference sequence
 
+Do steps a - c for each reference.
+
 #### a. Index the reference (consensus) sequence. 
 
 Here, we used the Burrow-Wheeler Aligner (BWA v. 0.7.10) to index our reference genome. This give the squence position points for the alignment later on.
 
 ```{bash eval=FALSE}
-bwa index diploid_consensus_final.fasta 
+bwa index consensus.fasta 
 ```
 
 #### b. Picard tools to create a dictionary
@@ -235,14 +249,14 @@ bwa index diploid_consensus_final.fasta
 We used Java (OpenJDK) v. 1.8.0 and PicardTools v. 2.9.0
 
 ```{bash eval=FALSE}
-java -jar picard.jar CreateSequenceDictionary REFERENCE=diploid_consensus_final.fasta OUTPUT=diploid_consensus_final.dict
+java -jar picard.jar CreateSequenceDictionary REFERENCE=consensus.fasta OUTPUT=consensus.dict
 ```
 #### c. Creating the fasta index file
 
 We used SAMTOOLS v. 1.5
 
 ```{bash eval=FALSE}
-samtools faidx diploid_consensus_final.fasta
+samtools faidx consensus.fasta
 ```
 
 Now you should have the following files:
@@ -257,6 +271,8 @@ consensus.pac
 consensus.sa
 
 ### Step 2: Align parsed reads (from ALL individual .FASTQ files) to the *de novo* reference
+
+Do step a and b separately for each clade.
 
 #### a. Align individuals with BWA ALN
 
@@ -293,35 +309,29 @@ samtools index -b *.sorted.bam
 
 ### Step 3: Call Variants
 
-To call variants, we used the GATK HaplotypeCaller (v. 4) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
-
-samtools mpileup and bcftools call??
-#### Diploids
 ```{bash eval=FALSE}
-java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
-```
-
-<!--
-#### Tetraploids
-```{bash eval=FALSE}
-java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I tetraploid_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ae_rawVar.g.vcf -out_mode EMIT_VARIANTS_ONLY --variant_index_type LINEAR --variant_index_parameter 128000
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R ei_cons.fasta -I bams.list --genotyping_mode DISCOVERY -ploidy 2 -o ice_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
 ```
 
 ```{bash eval=FALSE}
-grep -v ^# ae.vcf | cut -f 8 | perl -p -i -e 's/DP=(\d+);\S+/\1/' > depth.txt
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R gl_cons.fasta -I bams.list --genotyping_mode DISCOVERY -ploidy 2 -o glc_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
 ```
--->
 
 ### Step 4: filter VCFs
 
 ```{bash eval=FALSE}
-vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 4.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf rawVar.vcf
+vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 5.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf ei_rawVar.vcf
 ```
-Kept 2345 out of a possible 14593 sites
+Kept 1288 out of a possible 14593 sites
 
-The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see **stringency variable** in script below). 
- 
+```{bash eval=FALSE}
+vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 1.3 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf gl_rawVar.vcf
+```
+Kept 2122 out of a possible 15953 sites
+
 <!--
+The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see **stringency variable** in script below).  
+
 BOTH VCF files need to be filtered this way (2\_rawVar.vcf and 4\_rawVar.vcf).
 
 ### Step 5: Find the intersection of variants in diploids and tetraploids
@@ -368,19 +378,20 @@ Before getting started with ENTROPY, we need to convert our VCF file to a GL (Ge
 
 We used the perl script vcf2gl.pl to convert our filtered vcf to the simpler .gl format for downstream analysis.
 
-For diploids:
-
 ```{bash eval=FALSE}
-perl vcf2gl.pl aeAll.vcf
+perl vcf2gl.pl ice_filteredVar.vcf
+
+perl vcf2gl.pl lgc_filteredVar.vcf
 ```
-This outputs a file called out.recode.gl
 
 Next we are going to convert the GL file to a matrix that we can use in R with DAPC.
 
 ```{bash eval=FALSE}
-perl gl2genest.pl out.recode.gl
+perl gl2genest.pl ice_rawVar.gl
+
+perl gl2genest.pl lgc_rawVar.gl
 ```
-This outputs a file called pntest\_out.recode.gl
+This outputs a file called pntest\_\*.txt
 
 ### Discriminant Analysis of Principle Components 
 
@@ -392,7 +403,7 @@ Using the R package ADEGENET (v. 2.1.1), run a Discriminate Analysis of Principl
 library(adegenet)
 
 # read in genotype matrix
-d <- read.table("pntest_out.recode.vcf", header = F)
+d <- read.table("pntest_out.*.txt", header = F)
 
 # transform data
 dt <- t(d)
@@ -401,16 +412,16 @@ dt <- t(d)
 dg <- df2genind(dt, sep = " ", ploidy = 2)
 
 grp <- find.clusters(dg, max.n.clust = 6)
-# number of PCs retained: 
-# number of clusters: 
+# number of PCs retained: 6
+# number of clusters: 2
 
 head(grp$grp, 8)
 
 # get likelihood assignments
 
 dapc1 <- dapc(dg, grp$grp)
-# PCs: 
-# discriminant functions:
+# PCs: 6
+# discriminant functions: 1
 
 write.table(dapc1$posterior, "k_est.txt")
 ```
@@ -418,7 +429,7 @@ write.table(dapc1$posterior, "k_est.txt")
 ##### b. run ENTROPY
 
 ```{bash eval=FALSE}
-./entropy -b 10000 -l 50000 -t 4 -k 2 -i ae_in.gl -o out.hdf5 -m 1 -w 0 -q pop_ests.txt -s 20
+./entropy -b 10000 -l 50000 -t 4 -k 2 -i filtered.gl -o k2.hdf5 -m 1 -w 0 -q k_est.txt -s 20
 ```
 -b discard the first n MCMC samples as a burn-in
 -t Thin MCMC samples by recording everyth nth value
@@ -433,7 +444,7 @@ write.table(dapc1$posterior, "k_est.txt")
 ##### c. ESTPOST - pulling out meaningful things from entropy
 
 ```{bash eval=FALSE}
-./estpost_entropy -o k2.txt -p q -s 0 -w 1 entropy_ae_k2_2.hdf5
+./estpost_entropy -o k2.txt -p q -s 0 -w 0 entropy_ae_k2_2.hdf5
 ```
 -o outfile
 -p name of parameter to summarize
@@ -453,22 +464,21 @@ write.table(dapc1$posterior, "k_est.txt")
 ##############################
 
 # averages up to 3 chains for a given k
-avg_k <- function(kval, n_inds = 16, chain1, chain2 = chain1, chain3 = chain1){
-	df <- as.data.frame(matrix(nrow = kval*n_inds,  ncol = 4))
-	colnames(df)[1:4] <- c("chain1", "chain2", "chain3", "avg")
+avg_k <- function(kval, n_inds = 8, chain1, chain2 = chain1){
+	df <- as.data.frame(matrix(nrow = kval*n_inds,  ncol = 3))
+	colnames(df)[1:3] <- c("chain1", "chain2", "avg")
 	df[,1] <- chain1[,1]	
 	df[,2] <- chain2[,1]
-	df[,3] <- chain3[,1]
-	df[,4] <- rowMeans(df[sapply(df, is.numeric)])
+	df[,3] <- rowMeans(df[sapply(df, is.numeric)])
 	return(df)
 }
 
 # makes a data frame with your averaged chains
-make_df <- function(kfile, kval, ninds = 16, names){
+make_df <- function(kfile, kval, ninds = 8, names){
 	x <- 1
 	df <- as.data.frame(matrix(nrow = ninds, ncol = kval+x))
 	for (i in 1:kval){
-		df[,i] <- kfile[x:(ninds*i),4]
+		df[,i] <- kfile[x:(ninds*i),3]
 		x <- x+ninds
 	}
 	df[,ncol(df)] <- names
@@ -478,11 +488,11 @@ make_df <- function(kfile, kval, ninds = 16, names){
 
 # function to plot each chain for a given k
 plot_q_per_chain <- function(kqlist, xlabel, ...){
-	cols <- c('#D62227','#F38020','#F5C527','#8FBA3E','#40B8D8','#71449A')	
+	cols <- c('#F38020','#F5C527','#D62227','#71449A','#8FBA3E','#40B8D8')	
 	par(mfrow= c(length(kqlist),1), mar=c(4,2,1,1) + 0.1, oma= c(5,0,0,0), mgp= c(0,1,0))
 	chain <- seq(1, length(kqlist), 1) 
 	for(i in 1:length(kqlist)){
-		barplot(t(kqlist[[i]]), beside= F, col= cols, las= 2, axisnames= T, cex.name= 1, cex.axis= 1.2, border= 1, space= c(0.05,0.05), yaxt= 'n', ylab= paste("k =", chain[i+1], sep= ' '), cex.lab= 2, names.arg= xlabel)
+		barplot(t(kqlist[[i]]), beside= F, col= cols, las= 2, axisnames= T, cex.name= 1, cex.axis= 1.2, border= 1, space= c(0.05,0.05), yaxt= 'n', ylab= paste("k =", chain[i]+1, sep= ' '), cex.lab= 2, names.arg= xlabel)
 		axis(2, at= c(0, 0.5, 1), cex.axis= 1, las= 2, pos= -0.2)
  	}
 }
@@ -491,35 +501,60 @@ plot_q_per_chain <- function(kqlist, xlabel, ...){
 # read in all files from estpost
 ################################
 
-k2_1 <- read.csv("k2_1.txt", sep = ',', header = F)
-k2_2 <- read.csv("k2_2.txt", sep = ',', header = F)
-k2_3 <- read.csv("k2_3.txt", sep = ',', header = F)
-
-k4 <- read.csv("k_4.txt", sep = ',', header = T)
+k2 <- read.csv("k2.txt", sep = ',', header = T)
+k2 <- k2[,-1]
+k2_2 <- read.csv("k2_2.txt", sep = ',', header = T)
+k2_2 <- k2_2[,-1]
+k3 <- read.csv("k3.txt", sep = ',', header = T)
+k3 <- k3[,-1]
+k3_2 <- read.csv("k3_2.txt", sep = ',', header = T)
+k3_2 <- k3_2[,-1]
+k4 <- read.csv("k4.txt", sep = ',', header = T)
 k4 <- k4[,-1]
-k5 <- read.csv("k_5.txt", sep = ',', header = T)
+k4_2 <- read.csv("k4_2.txt", sep = ',', header = T)
+k4 <- k4_2[,-1]
+k5 <- read.csv("k5.txt", sep = ',', header = T)
 k5 <- k5[,-1]
-k6 <- read.csv("k_6.txt", sep = ',', header = T)
-k6 <- k6[,-1]
+k5_2 <- read.csv("k5_2.txt", sep = ',', header = T)
+k5_2 <- k5_2[,-1]
 
 # list of names and IDs for each individual
 names <- read.csv("names.txt", sep ',', header = F)
 
 # create data frames for each k
-a4 <- avg_k(kval = 4, chain1 = k4)
+a2 <- avg_k(kval = 2, chain1 = k2, chain2 = k2_2)
+df2 <- make_df(kfile = a2, kval = 2, names = names)
+a3 <- avg_k(kval = 3, chain1 = k3, chain2 = k3_2)
+df3 <- make_df(kfile = a3, kval = 3, names = names)
+a4 <- avg_k(kval = 4, chain1 = k4, chain2 = k4_2)
 df4 <- make_df(kfile = a4, kval = 4, names = names)
-a5 <- avg_k(kval = 5, chain1 = k5)
-df5 <- make_df(kfile = a5, kval = 5, names = names)
-a6 <- avg_k(kval = 6, chain1 = k6)
-df6 <- make_df(kfile = a6, kval = 6, names = names)
+a5 <- avg_k(kval = 5, chain1 = k5, chain5 = k5_2)
+df5 <- make_df(kfile = a5, kval = 5, names = ei_names)
 
 # create list for plot_q_per_chain
-k4list <- list(df4[,1:4])
-k5list <- list(df5[,1:5])
-k6list <- list(df6[,1:6])
+k_ice_list <- list(df2[,1:2], df3[,1:3], df4[,1:4], df5[,1:5])
 
 # plot each k
 plot_q_per_chain(k4list, df4[,5])
+
+# lgc
+lgc_names <- read.csv("lgc/lgc_names.txt", header = F)
+
+k2_lgc <- read.csv("lgc/k2.txt", sep = ',', header = T)
+k2_lgc <- k2_lgc[,-1]
+k3_lgc <- read.csv("lgc/k3.txt", sep = ',', header = T)
+k3_lgc <- k3_lgc[,-1]
+k4_lgc <- read.csv("lgc/k4.txt", sep = ',', header = T)
+k4_lgc <- k4_lgc[,-1]
+
+a2_lgc <- avg_k(kval = 2, chain1 = k2_lgc)
+df2_lgc <- make_df(kfile = a2_lgc, kval = 2, names = lgc_names)
+a3_lgc <- avg_k(kval = 3, chain1 = k3_lgc)
+df3_lgc <- make_df(kfile = a3_lgc, kval = 3, names = lgc_names)
+a4_lgc <- avg_k(kval = 4, chain1 = k4_lgc)
+df4_lgc <- make_df(kfile = a4_lgc, kval = 4, names = lgc_names)
+
+lgcList <- list(df2_lgc[,1:2], df3_lgc[,1:3], df4_lgc[,1:4])
 ```
 
 ## Program Versions

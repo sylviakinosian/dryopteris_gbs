@@ -535,7 +535,7 @@ df5 <- make_df(kfile = a5, kval = 5, names = ei_names)
 k_ice_list <- list(df2[,1:2], df3[,1:3], df4[,1:4], df5[,1:5])
 
 # plot each k
-plot_q_per_chain(k4list, df4[,5])
+plot_q_per_chain(k_ice_list, df4[,5])
 
 # lgc
 lgc_names <- read.csv("lgc/lgc_names.txt", header = F)
@@ -546,6 +546,8 @@ k3_lgc <- read.csv("lgc/k3.txt", sep = ',', header = T)
 k3_lgc <- k3_lgc[,-1]
 k4_lgc <- read.csv("lgc/k4.txt", sep = ',', header = T)
 k4_lgc <- k4_lgc[,-1]
+k5_lgc <- read.csv("lgc/k5.txt", sep = ',', header = T)
+k5_lgc <- k5_lgc[,-1]
 
 a2_lgc <- avg_k(kval = 2, chain1 = k2_lgc)
 df2_lgc <- make_df(kfile = a2_lgc, kval = 2, names = lgc_names)
@@ -553,8 +555,12 @@ a3_lgc <- avg_k(kval = 3, chain1 = k3_lgc)
 df3_lgc <- make_df(kfile = a3_lgc, kval = 3, names = lgc_names)
 a4_lgc <- avg_k(kval = 4, chain1 = k4_lgc)
 df4_lgc <- make_df(kfile = a4_lgc, kval = 4, names = lgc_names)
+a5_lgc <- avg_k(kval = 5, chain1 = k4_lgc)
+df5_lgc <- make_df(kfile = a5_lgc, kval = 5, names = lgc_names)
 
 lgcList <- list(df2_lgc[,1:2], df3_lgc[,1:3], df4_lgc[,1:4])
+
+plot_q_per_chain(lgcList, df2_lgc[,3])
 ```
 
 ## Program Versions

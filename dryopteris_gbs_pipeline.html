@@ -509,32 +509,51 @@ sta
 </div>
 <div id="step-5-combine-the-diploid-species-re-run-vsearch-clustering-and-filter" class="section level3">
 <h3>Step 5: combine the diploid species, re-run VSEARCH clustering and filter</h3>
-<!-- #### a. BEFORE COMBINING
-Make sure your *D. goldiana*, *D. intermedia*, *D. expansa*, and *D. ludoviciana* individuals are marked separatley within the RCC\*.fasta files. This will make checking to see if each final contig is represented by each species much easier.
+<div id="a.-before-combining" class="section level4">
+<h4>a. BEFORE COMBINING</h4>
+<p>Make sure your <em>D. goldiana</em>, <em>D. intermedia</em>, <em>D. expansa</em>, and <em>D. ludoviciana</em> individuals are marked separatley within the RCC*.fasta files. This will make checking to see if each final contig is represented by each species much easier.</p>
+<p>so far have not used this….</p>
+<pre class="bash"><code>sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=g/g' RCCgoldiana.fasta &gt; gRCCgoldiana.fasta
 
-so far have not used this....
+sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=i/g' RCCintermedia.fasta &gt; iRCCintermedia.fasta
 
-```bash
-sed 's/^>centroid=centroid=/>centroid=centroid=g/g' RCCgoldiana.fasta > gRCCgoldiana.fasta
+sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=e/g' RCCexpansa.fasta &gt; eRCCexpansa.fasta
 
-sed 's/^>centroid=centroid=/>centroid=centroid=i/g' RCCintermedia.fasta > iRCCintermedia.fasta
-
-sed 's/^>centroid=centroid=/>centroid=centroid=e/g' RCCexpansa.fasta > eRCCexpansa.fasta
-
-sed 's/^>centroid=centroid=/>centroid=centroid=l/g' RCCludoviciana.fasta > lRCCludoviciana.fasta
-``` -->
+sed 's/^&gt;centroid=centroid=/&gt;centroid=centroid=l/g' RCCludoviciana.fasta &gt; lRCCludoviciana.fasta</code></pre>
+</div>
 <div id="a.-combine-the-diploids" class="section level4">
 <h4>a. Combine the diploids</h4>
-<p>```</p>
-<pre class="bash"><code>cat RCCgoldiana.fasta RCCintermedia.fasta RCCexpansa.fasta RCCludoviciana.fasta &gt; diploid_consensus.fasta</code></pre>
+<p>We are going to be working with the data in two separate clades. The <em>intermedia - expansa - campyloptera</em> clade and the <em>goldiana - ludoviciana - celsa</em> clade. The evoltionary distance between the two groups is too great for GBS data to be informative across.</p>
+<p><em>intermedia</em> and <em>expansa</em></p>
+<pre class="bash"><code>cat iRCCintermedia.fasta eRCCexpansa.fasta &gt; ex_int_cons.fasta</code></pre>
+<p><em>goldiana</em> and <em>ludoviciana</em></p>
+<pre class="bash"><code>cat gRCCgoldiana.fasta lRCCludoviciana.fasta &gt; g_l_cons.fasta</code></pre>
 </div>
 <div id="b.-re-run-vsearch-with-84-similarity" class="section level4">
 <h4>b. Re-run vsearch with 84% similarity</h4>
 <pre class="bash"><code># cluster at 84% similarity
-vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.84 --consout 84diploidCons.fasta --msaout 84diploidMsa.fasta</code></pre>
+vsearch --cluster_fast ex_int_cons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84diploidCons.fasta --msaout 84diploidMsa.fasta
+
+# make sure each contig is present in each diploid
+./presence_filter.pl ex_int_cons.fasta
+
+# remove blank contigs
+grep -i -B 1 -E '^[[:upper:]]+$' contigs_84eiMsa.fasta &gt; ei_ref.fasta
+
+# using vim, remove -- lines
+# :g/^--$/d</code></pre>
+<pre class="bash"><code># cluster at 84% similarity
+vsearch --cluster_fast ex_int_cons.fasta --threads 10 --iddef 2 --id 0.84 --consout 84glCons.fasta --msaout 84glMsa.fasta
+
+# make sure each contig is present in each diploid
+./presence_filter.pl 84glMsa.fasta
+
+# remove blank contigs
+grep -i -B 1 -E '^[[:upper:]]+$' contigs_84glMsa.fasta &gt; gl_ref.fasta
+
+# using vim, remove -- lines
+# :g/^--$/d</code></pre>
 <p>We chose to use the 84% similarity. The proided us with a large number of contigs present in both species. We are going to apply some much stricter filtering parameters later on in the variant calling step, so it is better to start off with a few more contigs / material in general.</p>
-<p>Copy and rename 84diploidCons –&gt; diploid_consensus_final.fasta</p>
-<p>Hooray! Now you have a fresh <em>de novo</em> reference with which to align your parsed .FASTQ files!</p>
 </div>
 </div>
 </div>
@@ -543,32 +562,34 @@ vsearch --cluster_fast diploid_consensus.fasta --threads 10 --iddef 2 --id 0.84 
 <p>This portion of the analysis was done on the <a href="https://www.chpc.utah.edu/">Center for High Performance Computing</a> at the University of Utah.</p>
 <div id="step-1-prepare-the-reference-sequence" class="section level3">
 <h3>Step 1: Prepare the reference sequence</h3>
+<p>Do steps a - c for each reference.</p>
 <div id="a.-index-the-reference-consensus-sequence." class="section level4">
 <h4>a. Index the reference (consensus) sequence.</h4>
 <p>Here, we used the Burrow-Wheeler Aligner (BWA v. 0.7.10) to index our reference genome. This give the squence position points for the alignment later on.</p>
-<pre class="bash"><code>bwa index diploid_consensus_final.fasta </code></pre>
+<pre class="bash"><code>bwa index consensus.fasta </code></pre>
 </div>
 <div id="b.-picard-tools-to-create-a-dictionary" class="section level4">
 <h4>b. Picard tools to create a dictionary</h4>
 <p>We used Java (OpenJDK) v. 1.8.0 and PicardTools v. 2.9.0</p>
-<pre class="bash"><code>java -jar picard.jar CreateSequenceDictionary REFERENCE=diploid_consensus_final.fasta OUTPUT=diploid_consensus_final.dict</code></pre>
+<pre class="bash"><code>java -jar picard.jar CreateSequenceDictionary REFERENCE=consensus.fasta OUTPUT=consensus.dict</code></pre>
 </div>
 <div id="c.-creating-the-fasta-index-file" class="section level4">
 <h4>c. Creating the fasta index file</h4>
 <p>We used SAMTOOLS v. 1.5</p>
-<pre class="bash"><code>samtools faidx diploid_consensus_final.fasta</code></pre>
+<pre class="bash"><code>samtools faidx consensus.fasta</code></pre>
 <p>Now you should have the following files:</p>
 <p>consensus.dict consensus.fasta consensus.amb consensus.ann consensus.bwt consensus.fai consensus.pac consensus.sa</p>
 </div>
 </div>
 <div id="step-2-align-parsed-reads-from-all-individual-.fastq-files-to-the-de-novo-reference" class="section level3">
 <h3>Step 2: Align parsed reads (from ALL individual .FASTQ files) to the <em>de novo</em> reference</h3>
+<p>Do step a and b separately for each clade.</p>
 <div id="a.-align-individuals-with-bwa-aln" class="section level4">
 <h4>a. Align individuals with BWA ALN</h4>
 <p>See script <code>bwa_aln.sh</code></p>
 <pre class="bash"><code>#!/bin/bash
 
-REF='/path/to/diploid_consensus_final.fasta'
+REF='/path/to/consensus_final.fasta'
 
 for i in *.fastq;
 do
@@ -593,34 +614,18 @@ samtools index -b *.sorted.bam</code></pre>
 </div>
 <div id="step-3-call-variants" class="section level3">
 <h3>Step 3: Call Variants</h3>
-<p>mpileup <!--
-To call variants, we used the GATK HaplotypeCaller (v. 4) because of its ability to specify ploidy. We called variants separately for the diploids and tetraploids.
-
-samtools mpileup and bcftools call??
-#### Diploids
-
-```bash
-java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ae_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
-```
-
-#### Tetraploids
-
-```bash
-java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R diploid_consensus_final -I tetraploid_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ae_rawVar.g.vcf -out_mode EMIT_VARIANTS_ONLY --variant_index_type LINEAR --variant_index_parameter 128000
-```
-
-
-```bash
-grep -v ^# ae.vcf | cut -f 8 | perl -p -i -e 's/DP=(\d+);\S+/\1/' > depth.txt
-```
---></p>
+<pre class="bash"><code>java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R ei_cons.fasta -I bams.list --genotyping_mode DISCOVERY -ploidy 2 -o ice_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY</code></pre>
+<pre class="bash"><code>java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R gl_cons.fasta -I bams.list --genotyping_mode DISCOVERY -ploidy 2 -o glc_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY</code></pre>
 </div>
 <div id="step-4-filter-vcfs" class="section level3">
 <h3>Step 4: filter VCFs</h3>
-<pre class="bash"><code>vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 4.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf all_dryopteris_variants.vcf</code></pre>
-<p>4359 variants</p>
-<p>The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see <strong>stringency variable</strong> in script below).</p>
+<pre class="bash"><code>vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 5.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf ei_rawVar.vcf</code></pre>
+<p>Kept 1288 out of a possible 14593 sites</p>
+<pre class="bash"><code>vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 1.3 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf gl_rawVar.vcf</code></pre>
+<p>Kept 2122 out of a possible 15953 sites</p>
 <!--
+The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see **stringency variable** in script below).  
+
 BOTH VCF files need to be filtered this way (2\_rawVar.vcf and 4\_rawVar.vcf).
 
 ### Step 5: Find the intersection of variants in diploids and tetraploids
@@ -669,12 +674,14 @@ This outputs a file called diploidsAll.vcf
 <h3><strong>Entropy</strong></h3>
 <p>Before getting started with ENTROPY, we need to convert our VCF file to a GL (Genotype Likelihood) file.</p>
 <p>We used the perl script vcf2gl.pl to convert our filtered vcf to the simpler .gl format for downstream analysis.</p>
-<p>For diploids:</p>
-<pre class="bash"><code>perl vcf2gl.pl aeAll.vcf</code></pre>
-<p>This outputs a file called out.recode.gl</p>
+<pre class="bash"><code>perl vcf2gl.pl ice_filteredVar.vcf
+
+perl vcf2gl.pl lgc_filteredVar.vcf</code></pre>
 <p>Next we are going to convert the GL file to a matrix that we can use in R with DAPC.</p>
-<pre class="bash"><code>perl gl2genest.pl out.recode.gl</code></pre>
-<p>This outputs a file called pntest_out.recode.gl</p>
+<pre class="bash"><code>perl gl2genest.pl ice_rawVar.gl
+
+perl gl2genest.pl lgc_rawVar.gl</code></pre>
+<p>This outputs a file called pntest_*.txt</p>
 </div>
 <div id="discriminant-analysis-of-principle-components" class="section level3">
 <h3>Discriminant Analysis of Principle Components</h3>
@@ -684,7 +691,7 @@ This outputs a file called diploidsAll.vcf
 <pre class="r"><code>library(adegenet)
 
 # read in genotype matrix
-d &lt;- read.table(&quot;pntest_out.recode.vcf&quot;, header = F)
+d &lt;- read.table(&quot;pntest_out.*.txt&quot;, header = F)
 
 # transform data
 dt &lt;- t(d)
@@ -693,27 +700,27 @@ dt &lt;- t(d)
 dg &lt;- df2genind(dt, sep = &quot; &quot;, ploidy = 2)
 
 grp &lt;- find.clusters(dg, max.n.clust = 6)
-# number of PCs retained: 
-# number of clusters: 
+# number of PCs retained: 6
+# number of clusters: 2
 
-head(grp$grp, 16)
+head(grp$grp, 8)
 
 # get likelihood assignments
 
 dapc1 &lt;- dapc(dg, grp$grp)
-# PCs: 
-# discriminant functions:
+# PCs: 6
+# discriminant functions: 1
 
 write.table(dapc1$posterior, &quot;k_est.txt&quot;)</code></pre>
 </div>
 <div id="b.-run-entropy" class="section level5">
 <h5>b. run ENTROPY</h5>
-<pre class="bash"><code>./entropy -b 10000 -l 50000 -t 4 -k 2 -i ae_in.gl -o out.hdf5 -m 1 -w 0 -q pop_ests.txt -s 20</code></pre>
+<pre class="bash"><code>./entropy -b 10000 -l 50000 -t 4 -k 2 -i filtered.gl -o k2.hdf5 -m 1 -w 0 -q k_est.txt -s 20</code></pre>
 <p>-b discard the first n MCMC samples as a burn-in -t Thin MCMC samples by recording everyth nth value -k number of population clusters -i GL format infile -o HDF5 format outfile -m infile is in genotype likelihood format -w output includes population allele frequencies -q file with expected starting values for admixture proportions -s scalar for Dirichlet init of q, inversly proportional to variance</p>
 </div>
 <div id="c.-estpost---pulling-out-meaningful-things-from-entropy" class="section level5">
 <h5>c. ESTPOST - pulling out meaningful things from entropy</h5>
-<pre class="bash"><code>./estpost_entropy -o k2.txt -p q -s 0 -w 1 entropy_ae_k2_2.hdf5</code></pre>
+<pre class="bash"><code>./estpost_entropy -o k2.txt -p q -s 0 -w 0 entropy_ae_k2_2.hdf5</code></pre>
 <p>-o outfile -p name of parameter to summarize -s which summary to perform: 0 = posterior estimates and credible intervals 1 = histogram of posterior samples 2 = convert to plain text 3 = calculate DIC 4 = MCMC diagnostic - w write parameter identification to file, boolean</p>
 </div>
 </div>
@@ -725,23 +732,22 @@ write.table(dapc1$posterior, &quot;k_est.txt&quot;)</code></pre>
 ##############################
 
 # averages up to 3 chains for a given k
-avg_k &lt;- function(kval, n_inds = 16, chain1, chain2 = chain1, chain3 = chain1){
-    df &lt;- as.data.frame(matrix(nrow = kval*n_inds,  ncol = 4))
-    colnames(df)[1:4] &lt;- c(&quot;chain1&quot;, &quot;chain2&quot;, &quot;chain3&quot;, &quot;avg&quot;)
+avg_k &lt;- function(kval, n_inds = 8, chain1, chain2 = chain1){
+    df &lt;- as.data.frame(matrix(nrow = kval*n_inds,  ncol = 3))
+    colnames(df)[1:3] &lt;- c(&quot;chain1&quot;, &quot;chain2&quot;, &quot;avg&quot;)
     df[,1] &lt;- chain1[,1]    
     df[,2] &lt;- chain2[,1]
-    df[,3] &lt;- chain3[,1]
-    df[,4] &lt;- rowMeans(df[sapply(df, is.numeric)])
+    df[,3] &lt;- rowMeans(df[sapply(df, is.numeric)])
     return(df)
 }
 
 # makes a data frame with your averaged chains
-make_df &lt;- function(kfile, kval, ninds = 16, names){
+make_df &lt;- function(kfile, kval, ninds = 8, names){
     x &lt;- 1
-    df &lt;- as.data.frame(matrix(nrow = n_inds, ncol = k_val+x))
-    for (i in 1:k_val){
-        df[,i] &lt;- k_file[x:(n_inds*i),4]
-        x &lt;- x+n_inds
+    df &lt;- as.data.frame(matrix(nrow = ninds, ncol = kval+x))
+    for (i in 1:kval){
+        df[,i] &lt;- kfile[x:(ninds*i),3]
+        x &lt;- x+ninds
     }
     df[,ncol(df)] &lt;- names
     df &lt;- df[order(df[,ncol(df)]),]
@@ -750,11 +756,11 @@ make_df &lt;- function(kfile, kval, ninds = 16, names){
 
 # function to plot each chain for a given k
 plot_q_per_chain &lt;- function(kqlist, xlabel, ...){
-    cols &lt;- c('#D62227','#F38020','#F5C527','#8FBA3E','#40B8D8','#71449A')  
+    cols &lt;- c('#F38020','#F5C527','#D62227','#71449A','#8FBA3E','#40B8D8')  
     par(mfrow= c(length(kqlist),1), mar=c(4,2,1,1) + 0.1, oma= c(5,0,0,0), mgp= c(0,1,0))
     chain &lt;- seq(1, length(kqlist), 1) 
     for(i in 1:length(kqlist)){
-        barplot(t(kqlist[[i]]), beside= F, col= cols, las= 2, axisnames= T, cex.name= 1, cex.axis= 1.2, border= 1, space= c(0.05,0.05), yaxt= 'n', ylab= paste(&quot;k =&quot;, chain[i+1], sep= ' '), cex.lab= 2, names.arg= xlabel)
+        barplot(t(kqlist[[i]]), beside= F, col= cols, las= 2, axisnames= T, cex.name= 1, cex.axis= 1.2, border= 1, space= c(0.05,0.05), yaxt= 'n', ylab= paste(&quot;k =&quot;, chain[i]+1, sep= ' '), cex.lab= 2, names.arg= xlabel)
         axis(2, at= c(0, 0.5, 1), cex.axis= 1, las= 2, pos= -0.2)
     }
 }
@@ -763,34 +769,66 @@ plot_q_per_chain &lt;- function(kqlist, xlabel, ...){
 # read in all files from estpost
 ################################
 
-k2_1 &lt;- read.csv(&quot;k2_1.txt&quot;, sep = ',', header = F)
-k2_2 &lt;- read.csv(&quot;k2_2.txt&quot;, sep = ',', header = F)
-k2_3 &lt;- read.csv(&quot;k2_3.txt&quot;, sep = ',', header = F)
-
-k4 &lt;- read.csv(&quot;k_4.txt&quot;, sep = ',', header = T)
+k2 &lt;- read.csv(&quot;k2.txt&quot;, sep = ',', header = T)
+k2 &lt;- k2[,-1]
+k2_2 &lt;- read.csv(&quot;k2_2.txt&quot;, sep = ',', header = T)
+k2_2 &lt;- k2_2[,-1]
+k3 &lt;- read.csv(&quot;k3.txt&quot;, sep = ',', header = T)
+k3 &lt;- k3[,-1]
+k3_2 &lt;- read.csv(&quot;k3_2.txt&quot;, sep = ',', header = T)
+k3_2 &lt;- k3_2[,-1]
+k4 &lt;- read.csv(&quot;k4.txt&quot;, sep = ',', header = T)
 k4 &lt;- k4[,-1]
-k5 &lt;- read.csv(&quot;k_5.txt&quot;, sep = ',', header = T)
+k4_2 &lt;- read.csv(&quot;k4_2.txt&quot;, sep = ',', header = T)
+k4 &lt;- k4_2[,-1]
+k5 &lt;- read.csv(&quot;k5.txt&quot;, sep = ',', header = T)
 k5 &lt;- k5[,-1]
-k6 &lt;- read.csv(&quot;k_5.txt&quot;, sep = ',', header = T)
-k6 &lt;- k6[,-1]
+k5_2 &lt;- read.csv(&quot;k5_2.txt&quot;, sep = ',', header = T)
+k5_2 &lt;- k5_2[,-1]
 
 # list of names and IDs for each individual
 names &lt;- read.csv(&quot;names.txt&quot;, sep ',', header = F)
 
-a4 &lt;- avg_k(kval = 4, chain1 = k4)
+# create data frames for each k
+a2 &lt;- avg_k(kval = 2, chain1 = k2, chain2 = k2_2)
+df2 &lt;- make_df(kfile = a2, kval = 2, names = names)
+a3 &lt;- avg_k(kval = 3, chain1 = k3, chain2 = k3_2)
+df3 &lt;- make_df(kfile = a3, kval = 3, names = names)
+a4 &lt;- avg_k(kval = 4, chain1 = k4, chain2 = k4_2)
 df4 &lt;- make_df(kfile = a4, kval = 4, names = names)
-a5 &lt;- avg_k(kval = 5, chain1 = k4)
-df5 &lt;- make_df(kfile = a5, kval = 5, names = names)
-a6 &lt;- avg_k(kval = 6, chain1 = k4)
-df6 &lt;- make_df(kfile = a6, kval = 6, names = names)
+a5 &lt;- avg_k(kval = 5, chain1 = k5, chain5 = k5_2)
+df5 &lt;- make_df(kfile = a5, kval = 5, names = ei_names)
 
 # create list for plot_q_per_chain
+k_ice_list &lt;- list(df2[,1:2], df3[,1:3], df4[,1:4], df5[,1:5])
 
-k4list &lt;- list(df4[,1:4])
-k5list &lt;- list(df5[,1:4])
-k6list &lt;- list(df6[,1:4])
+# plot each k
+plot_q_per_chain(k_ice_list, df4[,5])
 
-plot_q_per_chain(k4list, df4[,5])</code></pre>
+# lgc
+lgc_names &lt;- read.csv(&quot;lgc/lgc_names.txt&quot;, header = F)
+
+k2_lgc &lt;- read.csv(&quot;lgc/k2.txt&quot;, sep = ',', header = T)
+k2_lgc &lt;- k2_lgc[,-1]
+k3_lgc &lt;- read.csv(&quot;lgc/k3.txt&quot;, sep = ',', header = T)
+k3_lgc &lt;- k3_lgc[,-1]
+k4_lgc &lt;- read.csv(&quot;lgc/k4.txt&quot;, sep = ',', header = T)
+k4_lgc &lt;- k4_lgc[,-1]
+k5_lgc &lt;- read.csv(&quot;lgc/k5.txt&quot;, sep = ',', header = T)
+k5_lgc &lt;- k5_lgc[,-1]
+
+a2_lgc &lt;- avg_k(kval = 2, chain1 = k2_lgc)
+df2_lgc &lt;- make_df(kfile = a2_lgc, kval = 2, names = lgc_names)
+a3_lgc &lt;- avg_k(kval = 3, chain1 = k3_lgc)
+df3_lgc &lt;- make_df(kfile = a3_lgc, kval = 3, names = lgc_names)
+a4_lgc &lt;- avg_k(kval = 4, chain1 = k4_lgc)
+df4_lgc &lt;- make_df(kfile = a4_lgc, kval = 4, names = lgc_names)
+a5_lgc &lt;- avg_k(kval = 5, chain1 = k4_lgc)
+df5_lgc &lt;- make_df(kfile = a5_lgc, kval = 5, names = lgc_names)
+
+lgcList &lt;- list(df2_lgc[,1:2], df3_lgc[,1:3], df4_lgc[,1:4])
+
+plot_q_per_chain(lgcList, df2_lgc[,3])</code></pre>
 </div>
 </div>
 <div id="program-versions" class="section level2">

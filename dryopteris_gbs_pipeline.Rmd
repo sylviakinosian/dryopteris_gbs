@@ -611,10 +611,10 @@ Visualize PCAs
 ```{r eval=FALSE}
 # n = #SNPs * sample size
 # i-c-e clade
-igk2<-matrix(scan("ice_gpk2.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
-igk3<-matrix(scan("ice_gpk3.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
-igk4<-matrix(scan("ice_gpk4.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
-igk5<-matrix(scan("ice_gpk5.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+ice2<-matrix(scan("ice_gpk2.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+ice3<-matrix(scan("ice_gpk3.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+ice4<-matrix(scan("ice_gpk4.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+ice5<-matrix(scan("ice_gpk5.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
 
 # l-g-c clade
 lgk2<-matrix(scan("lgc_gpk2.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
@@ -623,7 +623,7 @@ lgk4<-matrix(scan("lgc_gpk4.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
 lgk5<-matrix(scan("lgc_gpk5.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
 
 # average all four Ks
-g.avg1<-(igk2+igk3+igk4+igk5)/4
+g.avg1<-(ice2+ice3+ice4+ice5)/4
 g.avg2<-(lgk2+lgk3+lgk4+lgk5)/4
 
 # check to make sure everything is correct
@@ -638,22 +638,22 @@ g.pca1<-prcomp(g.avg1, scale=TRUE)
 g.pca2<-prcomp(g.avg2, scale=TRUE)
 
 # colors for the intermedia-campyloptera-expansa clade
-cols1 <- c(rep("black", 2), "blue", "black", rep("red",4))
+cols1 <- c(rep("F5C527", 2), "D62227", "F5C527", rep("F38020",4))
 
 # colors for the ludoviciana-goldiana-celsa clade
-cols2 <- c(rep("black", 3), "blue", rep("red", 4))
+cols2 <- c(rep("#8FBA3E", 3), "#71449A", rep("#40B8D8", 4))
 
 # plot ICE clade
-plot(g.pca1$x[,1], g.pca2$x[,2], col = cols1, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris intermedia-expansa-campyloptera", pch=19)
+plot(g.pca1$x[,1], g.pca1$x[,2], col = cols1, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris intermedia-expansa-campyloptera", pch=19)
 
 # add a legend
 legend(49, 30, legend=c("D. intermedia", "D. expansa", "D. campyloptera"), col=c("black", "blue", "red"), pch=19, cex=0.9)
 
 # plot LGC clade
-plot(g.pca2$x[,1], g.pca2$x[,2], col = cols2, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris goldiana - ludoviciana - celsa", pch=19)
+plot(g.pca2$x[,1], g.pca2$x[,2], col = cols2, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris goldiana-ludoviciana-celsa", pch=19)
 
 # add a legend
-legend(49, 30, legend=c("D. goldiana", "D. ludoviciana", "D. celsa"), col=c("black", "blue", "red"), pch=19, cex=0.9)
+legend(49, 30, legend=c("D. goldiana", "D. ludoviciana", "D. celsa"), col=c("#8FBA3E", "#71449A", "#40B8D8"), pch=19, cex=0.9)
 
 ```
 
@@ -668,6 +668,8 @@ Below is a list of all program versions used in this analysis. Please note that 
 [SAMtools v. 1.5](https://sourceforge.net/projects/samtools/files/samtools/1.5/)
 
 [SEQTK 1.2-r102-dirty](https://github.com/lh3/seqtk)
+
+[VCFTOOLS 0.1.15](https://vcftools.github.io/)
 
 [VSEARCH 2.4.2](https://github.com/torognes/vsearch)
 

@@ -261,14 +261,14 @@ samtools faidx consensus.fasta
 
 Now you should have the following files:
 
-consensus.dict
-consensus.fasta
-consensus.amb
-consensus.ann
-consensus.bwt
-consensus.fai
-consensus.pac
-consensus.sa
+consensus.dict<br>
+consensus.fasta<br>
+consensus.amb<br>
+consensus.ann<br>
+consensus.bwt<br>
+consensus.fai<br>
+consensus.pac<br>
+consensus.sa<br>
 
 ### Step 2: Align parsed reads (from ALL individual .FASTQ files) to the *de novo* reference
 
@@ -309,6 +309,7 @@ samtools index -b *.sorted.bam
 
 ### Step 3: Call Variants
 
+#### Step 3a. Process all individuals as diploid
 ```{bash eval=FALSE}
 java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R ei_cons.fasta -I bams.list --genotyping_mode DISCOVERY -ploidy 2 -o ice_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
 ```
@@ -317,7 +318,29 @@ java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R ei_cons.fasta -I bam
 java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R gl_cons.fasta -I bams.list --genotyping_mode DISCOVERY -ploidy 2 -o glc_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
 ```
 
+#### Step 3b. Process diploid & tetraploid individuals as separatley
+
+i-c-e clade
+```{bash eval=FALSE}
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R ei_cons.fasta -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2ice_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
+```
+
+```{bash eval=FALSE}
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R ei_cons.fasta -I tetra_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4ice_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
+```
+
+l-g-c clade
+```{bash eval=FALSE}
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R gl_cons.fasta -I diploid_bams.list --genotyping_mode DISCOVERY -ploidy 2 -o 2lgc_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
+```
+
+```{bash eval=FALSE}
+java -Xmx48g -jar GenomeAnaysisTK.jar -T HaplotypeCaller -R gl_cons.fasta -I tetra_bams.list --genotyping_mode DISCOVERY -ploidy 4 -o 4lgc_rawVar.vcf -out_mode EMIT_VARIANTS_ONLY
+```
+
 ### Step 4: filter VCFs
+
+#### Step 4a. Process all individuals as diploid
 
 ```{bash eval=FALSE}
 vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-meanDP 5.0 --max-missing 0.3 --minQ 20 --recode-INFO-all --recode --vcf ei_rawVar.vcf
@@ -329,19 +352,26 @@ vcftools --remove-filtered-all --remove-indels --maf 0.1 --max-maf 0.99 --min-me
 ```
 Kept 2122 out of a possible 15953 sites
 
-<!--
 The script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect (see **stringency variable** in script below).  
 
-BOTH VCF files need to be filtered this way (2\_rawVar.vcf and 4\_rawVar.vcf).
+BOTH VCF files for each species group need to be filtered this way (2\_rawVar.vcf and 4\_rawVar.vcf).
+
+#### Step 3b. Process diploid & tetraploid individuals as separatley
+
+Use the script vcfFilter.py filters based on read depth (minCoverage), alternative alleles(minAltRds), fixed loci (notFixed), and mapping quality (mapQual). These variables can be altered within the file to achieve the desired filtering affect.
+
+BOTH VCF files for each species group need to be filtered this way (2\_rawVar.vcf and 4\_rawVar.vcf).
 
 ### Step 5: Find the intersection of variants in diploids and tetraploids
+
+This is the same for both a & b options from above.
 
 Since we now have two VCF files, we need to combine them again somehow. To do this, we find the **intersection** of the variants in both files, subset, and then re-combine.
 
 #### a. Intersection of variants
 
 ```{bash eval=FALSE}
-perl vcf_checker.pl filtered_2.vcf filtered_4.vcf
+perl vcf_checker.pl rawVar2.vcf rawVar4.vcf
 ```
 
 Output is a list of the contigs present in both VCF files called matches.txt
@@ -351,24 +381,24 @@ Output is a list of the contigs present in both VCF files called matches.txt
 Do this for both files.
 
 ```{bash eval=FALSE}
-perl subsetVcf.pl matches.vcf filtered_2.vcf
+perl subsetVcf.pl matches.txt rawVar2.vcf
 
-perl subsetVcf.pl matches.vcf filtered_4.vcf
+perl subsetVcf.pl matches.txt varVar4.vcf
 ```
 
-Output is two files: sub\_filtered\_2.vcf and sub\_filtered\_4.vcf
+Output is two files: sub\_rawVar\_2.vcf and sub\_rawVar\_4.vcf
 
 #### c. Combine files
 
 What we are doing here is appending the data from one file onto the end of each matching contig in the other file.
 
 ```{bash eval=FALSE}
-perl combine.pl sub\_filtered\_2.vcf sub\_filtered\_4.vcf
+perl combine.pl sub\_rawVar\_2.vcf sub\_rawVar\_4.vcf
 ```
 
-This outputs a file called diploidsAll.vcf
+This outputs a file called iceAll.vcf
 
-**Add CHROM lines from each to diploidsAll.vcf** -->
+Please note that you need to add the \#CHROM line from the diploid and tetraplod VCF files to iceAll.vcf
 
 ## Population genetics
 
@@ -379,7 +409,7 @@ Before getting started with ENTROPY, we need to convert our VCF file to a GL (Ge
 We used the perl script vcf2gl.pl to convert our filtered vcf to the simpler .gl format for downstream analysis.
 
 ```{bash eval=FALSE}
-perl vcf2gl.pl ice_filteredVar.vcf
+perl vcf2gl.pl iceAll.vcf
 
 perl vcf2gl.pl lgc_filteredVar.vcf
 ```
@@ -387,7 +417,7 @@ perl vcf2gl.pl lgc_filteredVar.vcf
 Next we are going to convert the GL file to a matrix that we can use in R with DAPC.
 
 ```{bash eval=FALSE}
-perl gl2genest.pl ice_rawVar.gl
+perl gl2genest.pl iceAll.gl
 
 perl gl2genest.pl lgc_rawVar.gl
 ```
@@ -403,7 +433,7 @@ Using the R package ADEGENET (v. 2.1.1), run a Discriminate Analysis of Principl
 library(adegenet)
 
 # read in genotype matrix
-d <- read.table("pntest_out.*.txt", header = F)
+d <- read.table("Rscripts/pntest_iceAll.txt", header = F)
 
 # transform data
 dt <- t(d)
@@ -413,17 +443,20 @@ dg <- df2genind(dt, sep = " ", ploidy = 2)
 
 grp <- find.clusters(dg, max.n.clust = 6)
 # number of PCs retained: 6
-# number of clusters: 2
+# number of clusters: 3
 
 head(grp$grp, 8)
 
 # get likelihood assignments
 
 dapc1 <- dapc(dg, grp$grp)
-# PCs: 6
-# discriminant functions: 1
+# PCs: 5
+# discriminant functions: 2
+```
 
-write.table(dapc1$posterior, "k_est.txt")
+```{r eval=FALSE}
+write.table(dapc1$posterior, "starting_values.txt")
+# remove line & column names before reading in to entropy
 ```
 
 ##### b. run ENTROPY
@@ -431,29 +464,30 @@ write.table(dapc1$posterior, "k_est.txt")
 ```{bash eval=FALSE}
 ./entropy -b 10000 -l 50000 -t 4 -k 2 -i filtered.gl -o k2.hdf5 -m 1 -w 0 -q k_est.txt -s 20
 ```
--b discard the first n MCMC samples as a burn-in
--t Thin MCMC samples by recording everyth nth value
--k number of population clusters
--i GL format infile
--o HDF5 format outfile
--m infile is in genotype likelihood format 
--w output includes population allele frequencies
--q file with expected starting values for admixture proportions
--s scalar for Dirichlet init of q, inversly proportional to variance
+-b discard the first n MCMC samples as a burn-in<br>
+-t Thin MCMC samples by recording everyth nth value<br>
+-k number of population clusters<br>
+-i GL format infile<br>
+-o HDF5 format outfile<br>
+-m infile is in genotype likelihood format<br>
+-w output includes population allele frequencies<br>
+-q file with expected starting values for admixture proportions<br>
+-s scalar for Dirichlet init of q, inversly proportional to variance<br>
 
-##### c. ESTPOST - pulling out meaningful things from entropy
+##### c. ESTPOST - program to pull out different values from the entropy output
 
 ```{bash eval=FALSE}
-./estpost_entropy -o k2.txt -p q -s 0 -w 0 entropy_ae_k2_2.hdf5
+./estpost_entropy -o k2_1.txt -p q -s 0 -w 0 k2_1.hdf5
 ```
--o outfile
--p name of parameter to summarize
--s which summary to perform: 0 = posterior estimates and credible intervals
-                             1 = histogram of posterior samples
-                             2 = convert to plain text
-                             3 = calculate DIC
-                             4 = MCMC diagnostic
-- w write parameter identification to file, boolean
+-o outfile<br>
+-p name of parameter to summarize<br>
+-s which summary to perform:<br> 
+0 = posterior estimates and credible intervals<br>
+1 = histogram of posterior samples<br>
+2 = convert to plain text<br>
+3 = calculate DIC<br>
+4 = MCMC diagnostic<br>
+- w write parameter identification to file, boolean<br>
 
 ### **Visualizing Admixture**
 
@@ -522,14 +556,14 @@ k5_2 <- k5_2[,-1]
 names <- read.csv("names.txt", sep ',', header = F)
 
 # create data frames for each k
-a2 <- avg_k(kval = 2, chain1 = k2, chain2 = k2_2)
+a2 <- avg_k(kval = 2, chain1 = k2, chain2 = k2)
 df2 <- make_df(kfile = a2, kval = 2, names = names)
-a3 <- avg_k(kval = 3, chain1 = k3, chain2 = k3_2)
+a3 <- avg_k(kval = 3, chain1 = k3, chain2 = k3)
 df3 <- make_df(kfile = a3, kval = 3, names = names)
-a4 <- avg_k(kval = 4, chain1 = k4, chain2 = k4_2)
+a4 <- avg_k(kval = 4, chain1 = k4, chain2 = k4)
 df4 <- make_df(kfile = a4, kval = 4, names = names)
-a5 <- avg_k(kval = 5, chain1 = k5, chain5 = k5_2)
-df5 <- make_df(kfile = a5, kval = 5, names = ei_names)
+a5 <- avg_k(kval = 5, chain1 = k5, chain2 = k5)
+df5 <- make_df(kfile = a5, kval = 5, names = names)
 
 # create list for plot_q_per_chain
 k_ice_list <- list(df2[,1:2], df3[,1:3], df4[,1:4], df5[,1:5])
@@ -561,6 +595,66 @@ df5_lgc <- make_df(kfile = a5_lgc, kval = 5, names = lgc_names)
 lgcList <- list(df2_lgc[,1:2], df3_lgc[,1:3], df4_lgc[,1:4])
 
 plot_q_per_chain(lgcList, df2_lgc[,3])
+```
+
+### Principal Component Analysis
+
+Use estpost to get genotype probabilities from Entropy
+```{bash eval=FALSE}
+./estpost_entropy -o gpk2.txt -p gprob -s 0 -w 0 k2.hdf5
+./estpost_entropy -o gpk3.txt -p gprob -s 0 -w 0 k3.hdf5
+./estpost_entropy -o gpk4.txt -p gprob -s 0 -w 0 k4.hdf5
+./estpost_entropy -o gpk5.txt -p gprob -s 0 -w 0 k5.hdf5
+```
+
+Visualize PCAs
+```{r eval=FALSE}
+# n = #SNPs * sample size
+# i-c-e clade
+igk2<-matrix(scan("ice_gpk2.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+igk3<-matrix(scan("ice_gpk3.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+igk4<-matrix(scan("ice_gpk4.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+igk5<-matrix(scan("ice_gpk5.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
+
+# l-g-c clade
+lgk2<-matrix(scan("lgc_gpk2.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+lgk3<-matrix(scan("lgc_gpk3.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+lgk4<-matrix(scan("lgc_gpk4.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+lgk5<-matrix(scan("lgc_gpk5.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+
+# average all four Ks
+g.avg1<-(igk2+igk3+igk4+igk5)/4
+g.avg2<-(lgk2+lgk3+lgk4+lgk5)/4
+
+# check to make sure everything is correct
+# head(g.avg1)
+# dim(g.avg1)
+
+# head(g.avg2)
+# dim(g.avg2)
+
+# PCA
+g.pca1<-prcomp(g.avg1, scale=TRUE)
+g.pca2<-prcomp(g.avg2, scale=TRUE)
+
+# colors for the intermedia-campyloptera-expansa clade
+cols1 <- c(rep("black", 2), "blue", "black", rep("red",4))
+
+# colors for the ludoviciana-goldiana-celsa clade
+cols2 <- c(rep("black", 3), "blue", rep("red", 4))
+
+# plot ICE clade
+plot(g.pca1$x[,1], g.pca2$x[,2], col = cols1, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris intermedia-expansa-campyloptera", pch=19)
+
+# add a legend
+legend(49, 30, legend=c("D. intermedia", "D. expansa", "D. campyloptera"), col=c("black", "blue", "red"), pch=19, cex=0.9)
+
+# plot LGC clade
+plot(g.pca2$x[,1], g.pca2$x[,2], col = cols2, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris goldiana - ludoviciana - celsa", pch=19)
+
+# add a legend
+legend(49, 30, legend=c("D. goldiana", "D. ludoviciana", "D. celsa"), col=c("black", "blue", "red"), pch=19, cex=0.9)
+
 ```
 
 ## Program Versions

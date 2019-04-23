@@ -849,10 +849,10 @@ plot_q_per_chain(lgcList, df2_lgc[,3])</code></pre>
 <p>Visualize PCAs</p>
 <pre class="r"><code># n = #SNPs * sample size
 # i-c-e clade
-igk2&lt;-matrix(scan(&quot;ice_gpk2.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
-igk3&lt;-matrix(scan(&quot;ice_gpk3.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
-igk4&lt;-matrix(scan(&quot;ice_gpk4.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
-igk5&lt;-matrix(scan(&quot;ice_gpk5.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
+ice2&lt;-matrix(scan(&quot;ice_gpk2.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
+ice3&lt;-matrix(scan(&quot;ice_gpk3.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
+ice4&lt;-matrix(scan(&quot;ice_gpk4.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
+ice5&lt;-matrix(scan(&quot;ice_gpk5.txt&quot;, n=3964*8,sep=&quot;,&quot;), nrow=8,ncol=3964,byrow=T)
 
 # l-g-c clade
 lgk2&lt;-matrix(scan(&quot;lgc_gpk2.txt&quot;, n=4419*8,sep=&quot;,&quot;), nrow=8,ncol=4419,byrow=T)
@@ -861,7 +861,7 @@ lgk4&lt;-matrix(scan(&quot;lgc_gpk4.txt&quot;, n=4419*8,sep=&quot;,&quot;), nrow
 lgk5&lt;-matrix(scan(&quot;lgc_gpk5.txt&quot;, n=4419*8,sep=&quot;,&quot;), nrow=8,ncol=4419,byrow=T)
 
 # average all four Ks
-g.avg1&lt;-(igk2+igk3+igk4+igk5)/4
+g.avg1&lt;-(ice2+ice3+ice4+ice5)/4
 g.avg2&lt;-(lgk2+lgk3+lgk4+lgk5)/4
 
 # check to make sure everything is correct
@@ -876,22 +876,22 @@ g.pca1&lt;-prcomp(g.avg1, scale=TRUE)
 g.pca2&lt;-prcomp(g.avg2, scale=TRUE)
 
 # colors for the intermedia-campyloptera-expansa clade
-cols1 &lt;- c(rep(&quot;black&quot;, 2), &quot;blue&quot;, &quot;black&quot;, rep(&quot;red&quot;,4))
+cols1 &lt;- c(rep(&quot;F5C527&quot;, 2), &quot;D62227&quot;, &quot;F5C527&quot;, rep(&quot;F38020&quot;,4))
 
 # colors for the ludoviciana-goldiana-celsa clade
-cols2 &lt;- c(rep(&quot;black&quot;, 3), &quot;blue&quot;, rep(&quot;red&quot;, 4))
+cols2 &lt;- c(rep(&quot;#8FBA3E&quot;, 3), &quot;#71449A&quot;, rep(&quot;#40B8D8&quot;, 4))
 
 # plot ICE clade
-plot(g.pca1$x[,1], g.pca2$x[,2], col = cols1, xlab=&quot;PCA1&quot;,ylab=&quot;PCA2&quot;, cex.lab=1.3, cex.axis=1.6, main = &quot;PCA of Dryopteris intermedia-expansa-campyloptera&quot;, pch=19)
+plot(g.pca1$x[,1], g.pca1$x[,2], col = cols1, xlab=&quot;PCA1&quot;,ylab=&quot;PCA2&quot;, cex.lab=1.3, cex.axis=1.6, main = &quot;PCA of Dryopteris intermedia-expansa-campyloptera&quot;, pch=19)
 
 # add a legend
 legend(49, 30, legend=c(&quot;D. intermedia&quot;, &quot;D. expansa&quot;, &quot;D. campyloptera&quot;), col=c(&quot;black&quot;, &quot;blue&quot;, &quot;red&quot;), pch=19, cex=0.9)
 
 # plot LGC clade
-plot(g.pca2$x[,1], g.pca2$x[,2], col = cols2, xlab=&quot;PCA1&quot;,ylab=&quot;PCA2&quot;, cex.lab=1.3, cex.axis=1.6, main = &quot;PCA of Dryopteris goldiana - ludoviciana - celsa&quot;, pch=19)
+plot(g.pca2$x[,1], g.pca2$x[,2], col = cols2, xlab=&quot;PCA1&quot;,ylab=&quot;PCA2&quot;, cex.lab=1.3, cex.axis=1.6, main = &quot;PCA of Dryopteris goldiana-ludoviciana-celsa&quot;, pch=19)
 
 # add a legend
-legend(49, 30, legend=c(&quot;D. goldiana&quot;, &quot;D. ludoviciana&quot;, &quot;D. celsa&quot;), col=c(&quot;black&quot;, &quot;blue&quot;, &quot;red&quot;), pch=19, cex=0.9)</code></pre>
+legend(49, 30, legend=c(&quot;D. goldiana&quot;, &quot;D. ludoviciana&quot;, &quot;D. celsa&quot;), col=c(&quot;#8FBA3E&quot;, &quot;#71449A&quot;, &quot;#40B8D8&quot;), pch=19, cex=0.9)</code></pre>
 </div>
 </div>
 <div id="program-versions" class="section level2">
@@ -901,6 +901,7 @@ legend(49, 30, legend=c(&quot;D. goldiana&quot;, &quot;D. ludoviciana&quot;, &qu
 <p><a href="https://www.python.org/downloads/release/python-2713/">Python 2.7.13</a></p>
 <p><a href="https://sourceforge.net/projects/samtools/files/samtools/1.5/">SAMtools v. 1.5</a></p>
 <p><a href="https://github.com/lh3/seqtk">SEQTK 1.2-r102-dirty</a></p>
+<p><a href="https://vcftools.github.io/">VCFTOOLS 0.1.15</a></p>
 <p><a href="https://github.com/torognes/vsearch">VSEARCH 2.4.2</a></p>
 <p><a href="https://sourceforge.net/projects/bio-bwa/files/">BWA 0.7.15</a></p>
 <p><a href="https://github.com/broadinstitute/picard/releases">PicardTools 2.9.0</a></p>

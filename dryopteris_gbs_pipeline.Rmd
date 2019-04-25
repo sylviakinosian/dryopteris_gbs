@@ -617,10 +617,10 @@ ice4<-matrix(scan("ice_gpk4.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
 ice5<-matrix(scan("ice_gpk5.txt", n=3964*8,sep=","), nrow=8,ncol=3964,byrow=T)
 
 # l-g-c clade
-lgk2<-matrix(scan("lgc_gpk2.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
-lgk3<-matrix(scan("lgc_gpk3.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
-lgk4<-matrix(scan("lgc_gpk4.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
-lgk5<-matrix(scan("lgc_gpk5.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+lgk2<-matrix(scan("../lgc/revisions/lgc_gpk2.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+lgk3<-matrix(scan("../lgc/revisions/lgc_gpk3.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+lgk4<-matrix(scan("../lgc/revisions/lgc_gpk4.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
+lgk5<-matrix(scan("../lgc/revisions/lgc_gpk5.txt", n=4419*8,sep=","), nrow=8,ncol=4419,byrow=T)
 
 # average all four Ks
 g.avg1<-(ice2+ice3+ice4+ice5)/4
@@ -638,7 +638,7 @@ g.pca1<-prcomp(g.avg1, scale=TRUE)
 g.pca2<-prcomp(g.avg2, scale=TRUE)
 
 # colors for the intermedia-campyloptera-expansa clade
-cols1 <- c(rep("F5C527", 2), "D62227", "F5C527", rep("F38020",4))
+cols1 <- c(rep("#F5C527", 2), "#D62227", "#F5C527", rep("#F38020",4))
 
 # colors for the ludoviciana-goldiana-celsa clade
 cols2 <- c(rep("#8FBA3E", 3), "#71449A", rep("#40B8D8", 4))
@@ -647,13 +647,13 @@ cols2 <- c(rep("#8FBA3E", 3), "#71449A", rep("#40B8D8", 4))
 plot(g.pca1$x[,1], g.pca1$x[,2], col = cols1, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris intermedia-expansa-campyloptera", pch=19)
 
 # add a legend
-legend(49, 30, legend=c("D. intermedia", "D. expansa", "D. campyloptera"), col=c("black", "blue", "red"), pch=19, cex=0.9)
+legend(85, 43, legend=c("D. intermedia (2x)", "D. expansa (2x)", "D. campyloptera (4x)"), col=c("#F5C527", "#D62227", "#F38020"), pch=19, cex=0.9)
 
 # plot LGC clade
 plot(g.pca2$x[,1], g.pca2$x[,2], col = cols2, xlab="PCA1",ylab="PCA2", cex.lab=1.3, cex.axis=1.6, main = "PCA of Dryopteris goldiana-ludoviciana-celsa", pch=19)
 
 # add a legend
-legend(49, 30, legend=c("D. goldiana", "D. ludoviciana", "D. celsa"), col=c("#8FBA3E", "#71449A", "#40B8D8"), pch=19, cex=0.9)
+legend(49, 30, legend=c("D. goldiana (2x)", "D. ludoviciana (2x)", "D. celsa (4x)"), col=c("#8FBA3E", "#71449A", "#40B8D8"), pch=19, cex=0.9)
 
 ```
 

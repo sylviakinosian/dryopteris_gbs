@@ -2,9 +2,7 @@
 #
 # This scripts conversts a vcf file to a simpler format for downstream analysis. I am calling this format genetoype likelihood (gl). The first line lists: the number of individuals and loci. The next line has individual ids. This if followed by on line per SNP that gives the SNP id (scaffold, position) and the phred-scaled genotype likelihoods, three per individual. The script prints the non-reference allele frequency to a file so that they can be used to estimate genotypes
 #
-# NOTE: This version was edited by Sylvia Kinosian to deal with tetraploids NOT diploids - see OG vcf2gl.pl for use with diploids
-#
-# USAGE: perl vcf2gl.pl my_tetraploid_file.vcf
+# USAGE: perl vcf2gl.pl myfile.vcf
 #
 
 my $in = shift(@ARGV);
@@ -28,13 +26,13 @@ while (<IN>){
 	if (m/^#CHROM/){
 		@line = split(m/\s+/, $_);	
 		foreach $word (@line){
-			if ($word =~ m/[0-9a-zA-Z_]*/){ ## this is an individual id
+			if ($word =~ m/E[0-9]*_[a-z]*/){ ## this is an individual id
 				push (@inds, $word);
 				$nind++;
 			}
 		}
 		## NOTE, number of loci is not correct, need to add manually after the fact
-		## somdeday I will fix this
+		## someday I will fix this
 		print OUT "$nind $nloc\n";
 		$word = join (" ", @inds);
 		print OUT "$word\n";
@@ -51,12 +49,19 @@ while (<IN>){
 				@line = split(m/\s+/, $_);
 				$i = 0;
 				foreach $word (@line){
-					if ($word =~ s/^\d\/\d\://){
-						$word =~ s/\d+,\d+:\d+:\d+:// or die "failed sub $word \n";
+					if ($word =~ s/^(\d+\/\d+|\d+\/\d+\/\d+\/\d+):\d+,\d+:\d+:\d+://){
 						$word =~ s/,/ /g;
-						print OUT " $word";
+						# if 3 digits (diploid)...
+						if($word =~ m/^\d+\s\d+\s\d+$/){		
+							print OUT " $word";
+						}
+						# if 5 digits (tetraploid)...
+						elsif($word =~ m/^(\d+)\s(\d+)\s(\d+)\s(\d+)\s(\d+)$/){
+							$n = int(($2 + $3 + $4) / 3);
+							print OUT " $1 $n $5";
+						}	
 					}
-					elsif ($word =~ m/\.\/\./){
+					elsif ($word =~ m/(\.\/\.|\.\/\.\/\.\/\.)/){
 						print OUT " 0 0 0";
 					}
 			

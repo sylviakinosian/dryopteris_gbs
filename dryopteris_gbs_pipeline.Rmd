@@ -522,7 +522,7 @@ make_df <- function(kfile, kval, ninds = 8, names){
 
 # function to plot each chain for a given k
 plot_q_per_chain <- function(kqlist, xlabel, ...){
-	cols <- c('#F38020','#F5C527','#D62227','#71449A','#8FBA3E','#40B8D8')	
+	cols <- c('#F38020','#F5C527','#D62227','#71449A','#8FBA3E','#40B8D8', '#000000')	
 	par(mfrow= c(length(kqlist),1), mar=c(4,2,1,1) + 0.1, oma= c(5,0,0,0), mgp= c(0,1,0))
 	chain <- seq(1, length(kqlist), 1) 
 	for(i in 1:length(kqlist)){
